@@ -1,0 +1,32 @@
+# L2Raptors LoginServer Configuration
+
+server:
+  host: "0.0.0.0"
+  port: 2106
+  max_connections: 100
+
+loginserver:
+  host: "127.0.0.1"
+  port: 9014
+  
+database:
+  uri: "mongodb://localhost:27017"
+  database: "l2raptors"
+  timeout: 10
+  
+security:
+  auto_create_accounts: true
+  max_login_attempts: 3
+  ban_duration_minutes: 60
+  
+gameservers:
+  # Lista de GameServers autorizados
+  - id: 1
+    name: "Raptors"
+    host: "127.0.0.1"
+    port: 7777
+    
+logging:
+  level: "info"  # debug, info, warn, error
+  file: "logs/loginserver.log"
+  console: true

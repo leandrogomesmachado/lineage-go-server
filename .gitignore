@@ -1,0 +1,47 @@
+# Binarios compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+dist/
+
+# Arquivos de teste
+*.test
+*.out
+coverage.txt
+*.prof
+
+# Dependencias
+vendor/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Configuracoes locais
+configs/*.local.yaml
+configs/*.local.yml
+*.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# MongoDB
+data/
+
+# Temporarios
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Build
+build/
