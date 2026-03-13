@@ -97,7 +97,7 @@ func (r *CharacterRepository) Create(ctx context.Context, entrada CharacterCreat
 		"wantspeace":              int32(0),
 		"isin7sdungeon":           int32(0),
 		"punish_level":            int32(0),
-		"punish_timer":            int64(0),
+		"punish_timer":            int32(0),
 		"power_grade":             int32(0),
 		"nobless":                 int32(0),
 		"hero":                    int32(0),

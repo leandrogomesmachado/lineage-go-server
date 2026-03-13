@@ -81,6 +81,13 @@ func montarCharSelectInfoPacket(loginName string, sessionID uint32, slots []gsdb
 		escritor.escreverD(uint32(slot.Karma))
 		escritor.escreverD(uint32(slot.PkKills))
 		escritor.escreverD(uint32(slot.PvpKills))
+		tempoDelete := uint32(0)
+		if slot.AccessLevel < 0 {
+			tempoDelete = ^uint32(0)
+		}
+		if slot.AccessLevel >= 0 && slot.DeleteTime > agora {
+			tempoDelete = uint32((slot.DeleteTime - agora) / 1000)
+		}
 		for i := 0; i < 7; i++ {
 			escritor.escreverD(0)
 		}
@@ -95,13 +102,6 @@ func montarCharSelectInfoPacket(loginName string, sessionID uint32, slots []gsdb
 		escritor.escreverD(uint32(slot.Face))
 		escritor.escreverF(float64(slot.MaxHp))
 		escritor.escreverF(float64(slot.MaxMp))
-		tempoDelete := uint32(0)
-		if slot.AccessLevel < 0 {
-			tempoDelete = ^uint32(0)
-		}
-		if slot.AccessLevel >= 0 && slot.DeleteTime > agora {
-			tempoDelete = uint32((slot.DeleteTime - agora) / 1000)
-		}
 		escritor.escreverD(tempoDelete)
 		escritor.escreverD(uint32(slot.ClassID))
 		escritor.escreverD(1)

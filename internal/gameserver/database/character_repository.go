@@ -49,7 +49,7 @@ type CharacterSlot struct {
 	WantsPeace           int32  `bson:"wantspeace"`
 	IsIn7sDungeon        int32  `bson:"isin7sdungeon"`
 	PunishLevel          int32  `bson:"punish_level"`
-	PunishTimer          int64  `bson:"punish_timer"`
+	PunishTimer          int32  `bson:"punish_timer"`
 	PowerGrade           int32  `bson:"power_grade"`
 	Nobless              int32  `bson:"nobless"`
 	Hero                 int32  `bson:"hero"`
