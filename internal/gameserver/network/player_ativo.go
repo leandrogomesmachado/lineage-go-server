@@ -57,7 +57,7 @@ func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
 		x:         slot.X,
 		y:         slot.Y,
 		z:         slot.Z,
-		heading:   0,
+		heading:   slot.Heading,
 		titulo:    slot.Title,
 		clanID:    slot.ClanID,
 		karma:     slot.Karma,

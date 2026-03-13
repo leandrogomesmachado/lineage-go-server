@@ -43,6 +43,10 @@ func main() {
 	}
 	defer db.Close()
 	logger.Info("MongoDB conectado com sucesso")
+	err = gsdb.InicializarColecoesMongoJogo(db.Database)
+	if err != nil {
+		logger.Fatalf("Erro ao inicializar colecoes Mongo do jogo: %v", err)
+	}
 
 	logger.Infof("Datapack path: %s", cfg.Datapack.Path)
 	logger.Infof("Geodata enabled: %v", cfg.Geodata.Enabled)
@@ -60,8 +64,8 @@ func main() {
 
 	logger.Info("")
 	logger.Infof("Iniciando GameServer na porta %d...", cfg.Server.Port)
-	characterRepo := gsdb.NewCharacterRepository(db.Database)
-	serverJogo := network.NovoGameServer(cfg, characterRepo)
+	repositoriosPersonagem := gsdb.NewCharacterDataRepositories(db.Database)
+	serverJogo := network.NovoGameServer(cfg, repositoriosPersonagem)
 	if err = serverJogo.Iniciar(); err != nil {
 		logger.Fatalf("Erro ao iniciar GameServer de clientes: %v", err)
 	}

@@ -12,16 +12,13 @@ func (g *gameClient) processarMoveBackwardToLocation(packet *moveBackwardToLocat
 		return g.enviarPacket(montarActionFailedPacket())
 	}
 	logger.Infof("MoveBackwardToLocation recebido para conta %s personagem=%s origem=(%d,%d,%d) destino=(%d,%d,%d) tipo=%d", g.conta, g.playerAtivo.nome, packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ, packet.tipoMovimento)
-	if packet.tipoMovimento == 0 {
-		return g.enviarPacket(montarActionFailedPacket())
-	}
 	if distancia3D(packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ) > 9900 {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
 	origemX := g.playerAtivo.x
 	origemY := g.playerAtivo.y
 	origemZ := g.playerAtivo.z
-	destinoX, destinoY, destinoZ := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.targetX, packet.targetY, packet.targetZ)
+	destinoX, destinoY, destinoZ := normalizarPosicaoMundo(packet.targetX, packet.targetY, packet.targetZ)
 	g.playerAtivo.aplicarPosicao(destinoX, destinoY, destinoZ, calcularHeading(origemX, origemY, destinoX, destinoY))
 	g.sincronizarPersonagemAtualComPlayerAtivo()
 	g.persistirPosicaoPlayerAtivo()
@@ -47,6 +44,14 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 	g.persistirPosicaoPlayerAtivo()
 	g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))
 	return nil
+}
+
+func (g *gameClient) processarRequestItemList(packet *requestItemListPacket) error {
+	_ = packet
+	if g.playerAtivo == nil {
+		return nil
+	}
+	return g.enviarPacket(montarItemListPacketComJanela(g.itensAtivos, true))
 }
 
 func (g *gameClient) processarRequestRestart(packet *requestRestartPacket) error {

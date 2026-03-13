@@ -99,6 +99,14 @@ func lerEnterWorldPacket(dados []byte) *enterWorldPacket {
 	return &enterWorldPacket{}
 }
 
+type requestItemListPacket struct {
+}
+
+func lerRequestItemListPacket(dados []byte) *requestItemListPacket {
+	_ = dados
+	return &requestItemListPacket{}
+}
+
 type moveBackwardToLocationPacket struct {
 	targetX       int32
 	targetY       int32
@@ -146,6 +154,13 @@ type requestRestartPacket struct {
 
 func lerRequestRestartPacket(dados []byte) *requestRestartPacket {
 	return &requestRestartPacket{}
+}
+
+type requestSkillCoolTimePacket struct {
+}
+
+func lerRequestSkillCoolTimePacket(dados []byte) *requestSkillCoolTimePacket {
+	return &requestSkillCoolTimePacket{}
 }
 
 type characterRestorePacket struct {

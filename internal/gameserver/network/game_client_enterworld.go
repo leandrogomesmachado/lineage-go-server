@@ -32,30 +32,126 @@ func (g *gameClient) processarRequestGameStart(packet *requestGameStartPacket) e
 	return g.enviarPacket(montarCharSelectedPacket(g.sessionKey.PlayOkID1, *slot))
 }
 
+func (g *gameClient) normalizarStatusPersonagemPorTemplate() {
+	if g.personagemAtual == nil {
+		return
+	}
+	template, ok := obterTemplatePersonagemInicial(g.personagemAtual.ClassID)
+	if !ok {
+		return
+	}
+	nivel := g.personagemAtual.Level
+	if nivel <= 0 {
+		nivel = 1
+		g.personagemAtual.Level = 1
+	}
+	hpMaximo := template.obterHpMaximoPorNivel(nivel)
+	mpMaximo := template.obterMpMaximoPorNivel(nivel)
+	cpMaximo := template.obterCpMaximoPorNivel(nivel)
+	if hpMaximo > 0 {
+		g.personagemAtual.MaxHp = hpMaximo
+	}
+	if mpMaximo > 0 {
+		g.personagemAtual.MaxMp = mpMaximo
+	}
+	if cpMaximo > 0 {
+		g.personagemAtual.MaxCp = cpMaximo
+	}
+	if g.personagemAtual.CurHp <= 0 || g.personagemAtual.CurHp > g.personagemAtual.MaxHp {
+		g.personagemAtual.CurHp = g.personagemAtual.MaxHp
+	}
+	if g.personagemAtual.CurMp <= 0 || g.personagemAtual.CurMp > g.personagemAtual.MaxMp {
+		g.personagemAtual.CurMp = g.personagemAtual.MaxMp
+	}
+	if g.personagemAtual.CurCp < 0 || g.personagemAtual.CurCp > g.personagemAtual.MaxCp {
+		g.personagemAtual.CurCp = g.personagemAtual.MaxCp
+	}
+}
+
+func (g *gameClient) carregarDadosAuxiliaresPersonagem() {
+	if g.personagemAtual == nil {
+		return
+	}
+	if g.server.repositorios == nil {
+		return
+	}
+	classIndex := int32(0)
+	if g.personagemAtual.BaseClass > 0 && g.personagemAtual.BaseClass != g.personagemAtual.ClassID {
+		classIndex = 1
+	}
+	ctx := context.Background()
+	hennas, errHennas := g.server.repositorios.CharacterHennas.ListarPorPersonagem(ctx, g.personagemAtual.ObjID, classIndex)
+	if errHennas == nil {
+		g.hennasAtivas = hennas
+	}
+	if errHennas != nil {
+		logger.Warnf("Falha ao carregar hennas do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errHennas)
+	}
+	skills, errSkills := g.server.repositorios.CharacterSkills.ListarPorPersonagem(ctx, g.personagemAtual.ObjID, classIndex)
+	if errSkills == nil {
+		g.skillsAtivas = skills
+	}
+	if errSkills != nil {
+		logger.Warnf("Falha ao carregar skills do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errSkills)
+	}
+	atalhos, errAtalhos := g.server.repositorios.CharacterShortcuts.ListarPorPersonagem(ctx, g.personagemAtual.ObjID, classIndex)
+	if errAtalhos == nil {
+		g.atalhosAtivos = atalhos
+	}
+	if errAtalhos != nil {
+		logger.Warnf("Falha ao carregar atalhos do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errAtalhos)
+	}
+	subclasses, errSubclasses := g.server.repositorios.CharacterSubclasses.ListarPorPersonagem(ctx, g.personagemAtual.ObjID)
+	if errSubclasses == nil {
+		g.subclassesAtivas = subclasses
+	}
+	if errSubclasses != nil {
+		logger.Warnf("Falha ao carregar subclasses do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errSubclasses)
+	}
+	itens, errItens := g.server.repositorios.CharacterItems.ListarPorPersonagem(ctx, g.personagemAtual.ObjID)
+	if errItens == nil {
+		g.itensAtivos = itens
+	}
+	if errItens != nil {
+		logger.Warnf("Falha ao carregar itens do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errItens)
+	}
+}
+
 func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 	_ = packet
 	if g.personagemAtual == nil {
 		logger.Warnf("EnterWorld recebido sem personagem selecionado para conta %s", g.conta)
 		return g.enviarPacket(montarActionFailedPacket())
 	}
+	g.normalizarStatusPersonagemPorTemplate()
 	g.garantirSpawnSeguro()
 	g.playerAtivo = novoPlayerAtivo(g.conta, *g.personagemAtual)
+	g.carregarDadosAuxiliaresPersonagem()
 	if err := g.server.characterRepo.AtualizarLastAccess(context.Background(), g.personagemAtual.ObjID); err != nil {
 		logger.Warnf("Falha ao atualizar lastAccess do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, err)
 	}
 	g.estado = estadoInGame
 	g.server.mundo.registrar(g)
 	logger.Infof("EnterWorld recebido para conta %s personagem=%s objID=%d", g.conta, g.personagemAtual.CharName, g.personagemAtual.ObjID)
-	if err := g.enviarPacket(montarSkillListPacket()); err != nil {
+	if err := g.enviarPacket(montarSkillListPacket(g.skillsAtivas)); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarUserInfoPacket(*g.personagemAtual)); err != nil {
+	if err := g.enviarPacket(montarExStorageMaxCountPacket()); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarItemListPacket()); err != nil {
+	if err := g.enviarPacket(montarHennaInfoPacket(*g.personagemAtual, g.hennasAtivas)); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarShortCutInitPacket()); err != nil {
+	if err := g.enviarPacket(montarEtcStatusUpdatePacket()); err != nil {
+		return err
+	}
+	if err := g.enviarPacket(montarUserInfoPacket(*g.personagemAtual, g.itensAtivos)); err != nil {
+		return err
+	}
+	if err := g.enviarPacket(montarItemListPacket(g.itensAtivos)); err != nil {
+		return err
+	}
+	if err := g.enviarPacket(montarShortCutInitPacket(g.atalhosAtivos)); err != nil {
 		return err
 	}
 	if err := g.enviarPacket(montarSkillCoolTimePacket()); err != nil {
@@ -92,7 +188,8 @@ func (g *gameClient) garantirSpawnSeguro() {
 	}
 	spawnInicial := template.obterSpawnInicial(g.personagemAtual.ObjID)
 	xAjustado, yAjustado, zAjustado := normalizarPosicaoMundo(g.personagemAtual.X, g.personagemAtual.Y, g.personagemAtual.Z)
-	if !g.posicaoPareceSegura(xAjustado, yAjustado, zAjustado, template) {
+	statusInconsistente := g.personagemAtual.MaxHp <= 0 || g.personagemAtual.MaxMp <= 0 || g.personagemAtual.Level <= 0
+	if statusInconsistente || !g.posicaoPareceSegura(xAjustado, yAjustado, zAjustado, template) {
 		xAjustado = spawnInicial.x
 		yAjustado = spawnInicial.y
 		zAjustado = spawnInicial.z
@@ -109,7 +206,7 @@ func (g *gameClient) garantirSpawnSeguro() {
 }
 
 func (g *gameClient) posicaoPareceSegura(x int32, y int32, z int32, template templatePersonagemInicial) bool {
-	if z <= -3200 {
+	if z <= -5000 {
 		return false
 	}
 	if x == 0 && y == 0 {
@@ -125,9 +222,6 @@ func (g *gameClient) sincronizarVisibilidadeAoEntrarNoMundo() error {
 	if g.playerAtivo == nil {
 		return nil
 	}
-	if err := g.enviarPacket(montarCharInfoPacket(g.playerAtivo)); err != nil {
-		return err
-	}
 	visiveis := g.server.mundo.listarVisiveisPara(g)
 	for _, outroCliente := range visiveis {
 		if outroCliente == nil {
@@ -136,10 +230,10 @@ func (g *gameClient) sincronizarVisibilidadeAoEntrarNoMundo() error {
 		if outroCliente.playerAtivo == nil {
 			continue
 		}
-		if err := g.enviarPacket(montarCharInfoPacket(outroCliente.playerAtivo)); err != nil {
+		if err := g.enviarPacket(montarCharInfoPacket(outroCliente.playerAtivo, outroCliente.itensAtivos)); err != nil {
 			return err
 		}
-		err := outroCliente.enviarPacket(montarCharInfoPacket(g.playerAtivo))
+		err := outroCliente.enviarPacket(montarCharInfoPacket(g.playerAtivo, g.itensAtivos))
 		if err != nil {
 			logger.Warnf("Falha ao enviar CharInfo de %s para %s: %v", g.playerAtivo.nome, outroCliente.playerAtivo.nome, err)
 		}

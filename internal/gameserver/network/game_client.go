@@ -44,6 +44,11 @@ type gameClient struct {
 	personagemAtual   *gsdb.CharacterSlot
 	slotSelecionado   int32
 	playerAtivo       *playerAtivo
+	hennasAtivas      []gsdb.CharacterHenna
+	skillsAtivas      []gsdb.CharacterSkill
+	atalhosAtivos     []gsdb.CharacterShortcut
+	subclassesAtivas  []gsdb.CharacterSubclass
+	itensAtivos       []gsdb.CharacterItem
 }
 
 func novoGameClient(conn net.Conn, server *gameServer) *gameClient {
@@ -97,6 +102,18 @@ func (g *gameClient) lerPacket() ([]byte, error) {
 }
 
 func (g *gameClient) enviarPacket(payload []byte) error {
+	if len(payload) > 0 {
+		opcode := payload[0]
+		if opcode == 0x03 || opcode == 0x04 || opcode == 0xc1 || opcode == 0xe4 || opcode == 0xf3 {
+			logger.Infof("Enviando packet opcode=0x%02X tamanho=%d conta=%s hex=%s", opcode, len(payload), g.conta, resumirHexGameServer(payload, 256))
+		}
+		if opcode == 0xfe && len(payload) >= 3 {
+			subOpcode := binary.LittleEndian.Uint16(payload[1:3])
+			if subOpcode == 0x2e {
+				logger.Infof("Enviando packet opcode=0xFE:0x%04X tamanho=%d conta=%s hex=%s", subOpcode, len(payload), g.conta, resumirHexGameServer(payload, 256))
+			}
+		}
+	}
 	buffer := make([]byte, len(payload))
 	copy(buffer, payload)
 	g.crypt.encrypt(buffer, 0, len(buffer))
@@ -151,6 +168,10 @@ func (g *gameClient) processarPacket(dados []byte) error {
 		packet := lerMoveBackwardToLocationPacket(dados)
 		return g.processarMoveBackwardToLocation(packet)
 	}
+	if g.estado == estadoInGame && opcode == 0x0f {
+		packet := lerRequestItemListPacket(dados)
+		return g.processarRequestItemList(packet)
+	}
 	if g.estado == estadoInGame && opcode == 0x48 {
 		packet := lerValidatePositionPacket(dados)
 		return g.processarValidatePosition(packet)
@@ -158,6 +179,11 @@ func (g *gameClient) processarPacket(dados []byte) error {
 	if g.estado == estadoInGame && opcode == 0x46 {
 		packet := lerRequestRestartPacket(dados)
 		return g.processarRequestRestart(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x9d {
+		packet := lerRequestSkillCoolTimePacket(dados)
+		_ = packet
+		return g.enviarPacket(montarSkillCoolTimePacket())
 	}
 	if (g.estado == estadoAuthed || g.estado == estadoInGame) && opcode == 0x09 {
 		packet := lerLogoutPacket(dados)

@@ -13,6 +13,7 @@ import (
 
 type gameServer struct {
 	config            *config.GameServerConfig
+	repositorios      *gsdb.CharacterDataRepositories
 	characterRepo     *gsdb.CharacterRepository
 	loginServerClient *clienteLoginServer
 	listener          net.Listener
@@ -20,17 +21,24 @@ type gameServer struct {
 	mundo             *mundoGameServer
 }
 
-func NovoGameServer(cfg *config.GameServerConfig, repo *gsdb.CharacterRepository) *gameServer {
+func NovoGameServer(cfg *config.GameServerConfig, repositorios *gsdb.CharacterDataRepositories) *gameServer {
 	server := &gameServer{
-		config:        cfg,
-		characterRepo: repo,
-		mundo:         novoMundoGameServer(),
+		config:       cfg,
+		repositorios: repositorios,
+		mundo:        novoMundoGameServer(),
+	}
+	if repositorios != nil {
+		server.characterRepo = repositorios.Characters
 	}
 	server.loginServerClient = NovoClienteLoginServer(cfg, server)
 	return server
 }
 
 func (g *gameServer) Iniciar() error {
+	err := carregarTemplatesPersonagemInicial(g.config.Datapack.Path)
+	if err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", g.config.Server.Host, g.config.Server.Port))
 	if err != nil {
 		return err

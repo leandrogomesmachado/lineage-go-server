@@ -17,7 +17,7 @@ database:
   timeout: 10
   
 datapack:
-  path: "../l2raptors-java/raptors_datapack"
+  path: "../raptors-go_datapack"
   
 geodata:
   enabled: true

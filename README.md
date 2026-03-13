@@ -17,9 +17,9 @@ Criar uma versão de alta performance do L2Raptors usando Go, mantendo compatibi
 
 - Go 1.23+
 - MongoDB 7.0+
-- Cliente Lineage 2 (compatível com o protocolo)
+- Cliente Lineage 2 (compatível com o protocolo 746 - Interlude)
 
-##  Quick Start
+## Quick Start
 
 ### 1. Instalar Dependências
 
@@ -120,7 +120,7 @@ Comparado com a versão Java:
 - **Latência**: 70% menor
 
 
-## Licença
+## 📝 Licença
 
 MIT.
 
@@ -133,7 +133,6 @@ MIT.
 5. Abra um Pull Request
 
 ## Links
-
 
 - [Documentação Go](https://golang.org/doc/)
 - [MongoDB Go Driver](https://www.mongodb.com/docs/drivers/go/current/)
