@@ -1,13 +1,13 @@
 package network
 
 const (
-	mundoXMin     = -131072
-	mundoXMax     = 229375
-	mundoYMin     = -262144
-	mundoYMax     = 294911
-	mundoZMax     = 16410
-	tamanhoRegiao = 2048
-	raioVisibilidade = 2500
+	mundoXMin            = -131072
+	mundoXMax            = 229375
+	mundoYMin            = -262144
+	mundoYMax            = 294911
+	mundoZMax            = 16410
+	tamanhoRegiao        = 2048
+	raioVisibilidade     = 2500
 	desyncMaximoValidate = 300
 )
 
@@ -45,6 +45,25 @@ func corrigirPosicaoPorGeodataInicial(origemX int32, origemY int32, origemZ int3
 }
 
 func posicaoNoRaioVisivel(origem *playerAtivo, alvo *playerAtivo) bool {
+	if origem == nil {
+		return false
+	}
+	if alvo == nil {
+		return false
+	}
+	if diferencaAbsolutaInt32(origem.regiaoX, alvo.regiaoX) > 1 {
+		return false
+	}
+	if diferencaAbsolutaInt32(origem.regiaoY, alvo.regiaoY) > 1 {
+		return false
+	}
+	if distancia3D(origem.x, origem.y, origem.z, alvo.x, alvo.y, alvo.z) > raioVisibilidade {
+		return false
+	}
+	return true
+}
+
+func posicaoNpcNoRaioVisivel(origem *playerAtivo, alvo *npcGlobalRuntime) bool {
 	if origem == nil {
 		return false
 	}

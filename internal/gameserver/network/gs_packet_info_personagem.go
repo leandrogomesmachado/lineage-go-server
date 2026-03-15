@@ -85,7 +85,7 @@ func montarCharInfoPacket(player *playerAtivo, itens []gsdb.CharacterItem, augme
 	escritor := novoEscritorPacket()
 	template, ok := obterTemplatePersonagemInicial(player.classID)
 	if !ok {
-		template = templatePersonagemInicial{}
+		template = templatePersonagemInicial{classID: player.classID, race: player.race, str: 1, dex: 1, con: 1, intel: 1, wit: 1, men: 1, runSpd: 120, walkSpd: 80, swimSpd: 50, baseAtkSpd: 300, baseCrit: 4, pAtk: 1, pDef: 1, mAtk: 1, mDef: 1, radiusMasculino: 8, radiusFeminino: 8, heightMasculino: 23, heightFeminino: 23}
 	}
 	itensPapelBoneca := listarItensPapelBoneca(itens)
 	statsCalculadas := calcularStatsPersonagem(template, player.nivel, itensPapelBoneca)
@@ -95,7 +95,40 @@ func montarCharInfoPacket(player *playerAtivo, itens []gsdb.CharacterItem, augme
 	runSpd := statsCalculadas.runSpd
 	walkSpd := statsCalculadas.walkSpd
 	swimSpd := statsCalculadas.swimSpd
-	logger.Infof("CharInfo nome=%s classID=%d nivel=%d str=%d dex=%d con=%d int=%d wit=%d men=%d run=%d walk=%d swim=%d hpAtual=%d hpMax=%d mpAtual=%d mpMax=%d cpAtual=%d cpMax=%d", player.nome, player.classID, player.nivel, template.str, template.dex, template.con, template.intel, template.wit, template.men, runSpd, walkSpd, swimSpd, player.hpAtual, player.hpMaximo, player.mpAtual, player.mpMaximo, player.cpAtual, player.cpMaximo)
+	hpMaximo := player.hpMaximo
+	if hpMaximo <= 0 {
+		hpMaximo = statsCalculadas.hpMaximo
+	}
+	mpMaximo := player.mpMaximo
+	if mpMaximo <= 0 {
+		mpMaximo = statsCalculadas.mpMaximo
+	}
+	cpMaximo := player.cpMaximo
+	if cpMaximo <= 0 {
+		cpMaximo = statsCalculadas.cpMaximo
+	}
+	hpAtual := player.hpAtual
+	if hpAtual <= 0 || hpAtual > hpMaximo {
+		hpAtual = hpMaximo
+	}
+	mpAtual := player.mpAtual
+	if mpAtual <= 0 || mpAtual > mpMaximo {
+		mpAtual = mpMaximo
+	}
+	cpAtual := player.cpAtual
+	if cpAtual < 0 || cpAtual > cpMaximo {
+		cpAtual = cpMaximo
+	}
+	movMultiplier := 1.0
+	if template.runSpd > 0 {
+		movMultiplier = float64(runSpd) / float64(template.runSpd)
+	}
+	atkMultiplier := 1.0
+	basePAtkSpd := statsCalculadasBasePAtkSpd(template, itensPapelBoneca)
+	if basePAtkSpd > 0 {
+		atkMultiplier = float64(statsCalculadas.pAtkSpd) / float64(basePAtkSpd)
+	}
+	logger.Infof("CharInfo nome=%s classID=%d nivel=%d str=%d dex=%d con=%d int=%d wit=%d men=%d run=%d walk=%d swim=%d hpAtual=%d hpMax=%d mpAtual=%d mpMax=%d cpAtual=%d cpMax=%d", player.nome, player.classID, player.nivel, template.str, template.dex, template.con, template.intel, template.wit, template.men, runSpd, walkSpd, swimSpd, hpAtual, hpMaximo, mpAtual, mpMaximo, cpAtual, cpMaximo)
 	escritor.escreverC(0x03)
 	escreverLoc(escritor, player.x, player.y, player.z)
 	escritor.escreverD(0)
@@ -142,8 +175,8 @@ func montarCharInfoPacket(player *playerAtivo, itens []gsdb.CharacterItem, augme
 	escritor.escreverD(uint32(walkSpd))
 	escritor.escreverD(0)
 	escritor.escreverD(0)
-	escritor.escreverF(float64(runSpd) / float64(template.runSpd))
-	escritor.escreverF((1.1 * float64(statsCalculadas.pAtkSpd)) / float64(statsCalculadasBasePAtkSpd(template, itensPapelBoneca)))
+	escritor.escreverF(movMultiplier)
+	escritor.escreverF(atkMultiplier)
 	escritor.escreverF(radiusColisao)
 	escritor.escreverF(heightColisao)
 	escritor.escreverD(uint32(player.hairStyle))
@@ -168,8 +201,8 @@ func montarCharInfoPacket(player *playerAtivo, itens []gsdb.CharacterItem, augme
 	escritor.escreverC(uint8(player.recLeft))
 	escritor.escreverH(uint16(player.recHave))
 	escritor.escreverD(uint32(player.classID))
-	escritor.escreverD(uint32(player.cpMaximo))
-	escritor.escreverD(uint32(player.cpAtual))
+	escritor.escreverD(uint32(cpMaximo))
+	escritor.escreverD(uint32(cpAtual))
 	escritor.escreverC(0)
 	escritor.escreverC(uint8(player.team))
 	escritor.escreverD(uint32(player.clanCrestLargeID))
@@ -192,7 +225,7 @@ func montarUserInfoPacket(slot gsdb.CharacterSlot, itens []gsdb.CharacterItem, a
 	escritor := novoEscritorPacket()
 	template, ok := obterTemplatePersonagemInicial(slot.ClassID)
 	if !ok {
-		template = templatePersonagemInicial{}
+		template = templatePersonagemInicial{classID: slot.ClassID, race: slot.Race, str: 1, dex: 1, con: 1, intel: 1, wit: 1, men: 1, runSpd: 120, walkSpd: 80, swimSpd: 50, baseAtkSpd: 300, baseCrit: 4, pAtk: 1, pDef: 1, mAtk: 1, mDef: 1, radiusMasculino: 8, radiusFeminino: 8, heightMasculino: 23, heightFeminino: 23}
 	}
 	itensPapelBoneca := listarItensPapelBoneca(itens)
 	statsCalculadas := calcularStatsPersonagem(template, slot.Level, itensPapelBoneca)
@@ -203,6 +236,15 @@ func montarUserInfoPacket(slot gsdb.CharacterSlot, itens []gsdb.CharacterItem, a
 	runSpd := statsCalculadas.runSpd
 	walkSpd := statsCalculadas.walkSpd
 	swimSpd := statsCalculadas.swimSpd
+	movMultiplier := 1.0
+	if template.runSpd > 0 {
+		movMultiplier = float64(runSpd) / float64(template.runSpd)
+	}
+	atkMultiplier := 1.0
+	basePAtkSpd := statsCalculadasBasePAtkSpd(template, itensPapelBoneca)
+	if basePAtkSpd > 0 {
+		atkMultiplier = float64(statsCalculadas.pAtkSpd) / float64(basePAtkSpd)
+	}
 	classIDExibicao := slot.ClassID
 	if slot.BaseClass > 0 && slot.BaseClass != slot.ClassID {
 		classIDExibicao = slot.BaseClass
@@ -230,6 +272,15 @@ func montarUserInfoPacket(slot gsdb.CharacterSlot, itens []gsdb.CharacterItem, a
 	cpAtual := slot.CurCp
 	if cpAtual < 0 || cpAtual > cpMaximo {
 		cpAtual = cpMaximo
+	}
+	if hpMaximo < 1 {
+		hpMaximo = 1
+	}
+	if mpMaximo < 1 {
+		mpMaximo = 1
+	}
+	if cpMaximo < 0 {
+		cpMaximo = 0
 	}
 	pesoAtual := int32(1000)
 	limitePeso := int32(10000)
@@ -288,8 +339,8 @@ func montarUserInfoPacket(slot gsdb.CharacterSlot, itens []gsdb.CharacterItem, a
 	escritor.escreverD(0)
 	escritor.escreverD(0)
 	escritor.escreverD(0)
-	escritor.escreverF(1.0)
-	escritor.escreverF(1.0)
+	escritor.escreverF(movMultiplier)
+	escritor.escreverF(atkMultiplier)
 	escritor.escreverF(radiusColisao)
 	escritor.escreverF(heightColisao)
 	escritor.escreverD(uint32(slot.HairStyle))

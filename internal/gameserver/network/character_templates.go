@@ -23,6 +23,7 @@ type templatePersonagemInicial struct {
 	nome            string
 	classID         int32
 	baseLvl         int32
+	fistsItemID     int32
 	race            int32
 	str             int32
 	dex             int32
@@ -54,22 +55,13 @@ type templatePersonagemInicial struct {
 	hpTable         []int32
 	mpTable         []int32
 	cpTable         []int32
+	hpRegenTable    []int32
+	mpRegenTable    []int32
+	cpRegenTable    []int32
 	spawns          []locSpawnInicial
 }
 
-var templatesPersonagemInicialPadrao = []templatePersonagemInicial{
-	{nome: "Human Fighter", classID: 0, baseLvl: 1, race: 0, str: 40, dex: 30, con: 43, intel: 21, wit: 11, men: 25, x: -71338, y: 258271, z: -3104, maxHp: 80, maxMp: 30, maxCp: 32, pAtk: 4, pDef: 80, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 115, walkSpd: 80, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 9, radiusFeminino: 8, heightMasculino: 23, heightFeminino: 23.5, spawns: []locSpawnInicial{{x: -71338, y: 258271, z: -3104}, {x: -71417, y: 258270, z: -3104}, {x: -71453, y: 258305, z: -3104}, {x: -71467, y: 258378, z: -3104}}},
-	{nome: "Human Mystic", classID: 10, baseLvl: 1, race: 0, str: 22, dex: 21, con: 27, intel: 41, wit: 20, men: 39, x: -90875, y: 248162, z: -3570, maxHp: 101, maxMp: 40, maxCp: 51, pAtk: 3, pDef: 54, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 120, walkSpd: 80, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7.5, radiusFeminino: 6.5, heightMasculino: 22.8, heightFeminino: 22.5, spawns: []locSpawnInicial{{x: -90875, y: 248162, z: -3570}, {x: -90954, y: 248118, z: -3570}, {x: -90918, y: 248070, z: -3570}, {x: -90890, y: 248027, z: -3570}}},
-	{nome: "Elven Fighter", classID: 18, baseLvl: 1, race: 1, str: 36, dex: 35, con: 36, intel: 23, wit: 14, men: 26, x: 46045, y: 41251, z: -3440, maxHp: 89, maxMp: 30, maxCp: 36, pAtk: 4, pDef: 80, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 122, walkSpd: 85, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7.5, radiusFeminino: 7.5, heightMasculino: 24, heightFeminino: 23, spawns: []locSpawnInicial{{x: 46045, y: 41251, z: -3440}, {x: 46117, y: 41247, z: -3440}, {x: 46182, y: 41198, z: -3440}, {x: 46115, y: 41141, z: -3440}, {x: 46048, y: 41141, z: -3440}, {x: 45978, y: 41196, z: -3440}}},
-	{nome: "Elven Mystic", classID: 25, baseLvl: 1, race: 1, str: 21, dex: 24, con: 25, intel: 37, wit: 23, men: 40, x: 46045, y: 41251, z: -3440, maxHp: 104, maxMp: 40, maxCp: 52, pAtk: 3, pDef: 54, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 122, walkSpd: 85, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7.5, radiusFeminino: 7.5, heightMasculino: 23.5, heightFeminino: 22.5, spawns: []locSpawnInicial{{x: 46045, y: 41251, z: -3440}, {x: 46117, y: 41247, z: -3440}, {x: 46182, y: 41198, z: -3440}, {x: 46115, y: 41141, z: -3440}, {x: 46048, y: 41141, z: -3440}, {x: 45978, y: 41196, z: -3440}}},
-	{nome: "Dark Fighter", classID: 31, baseLvl: 1, race: 2, str: 41, dex: 34, con: 32, intel: 25, wit: 12, men: 26, x: 28295, y: 11063, z: -4224, maxHp: 94, maxMp: 30, maxCp: 38, pAtk: 4, pDef: 80, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 122, walkSpd: 85, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7.5, radiusFeminino: 7, heightMasculino: 24, heightFeminino: 23.5, spawns: []locSpawnInicial{{x: 28295, y: 11063, z: -4224}, {x: 28302, y: 11008, z: -4224}, {x: 28377, y: 10916, z: -4224}, {x: 28456, y: 10997, z: -4224}, {x: 28461, y: 11044, z: -4224}, {x: 28395, y: 11127, z: -4224}}},
-	{nome: "Dark Mystic", classID: 38, baseLvl: 1, race: 2, str: 23, dex: 23, con: 24, intel: 44, wit: 19, men: 37, x: 28295, y: 11063, z: -4224, maxHp: 106, maxMp: 40, maxCp: 53, pAtk: 3, pDef: 54, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 122, walkSpd: 85, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7.5, radiusFeminino: 7, heightMasculino: 24, heightFeminino: 23.5, spawns: []locSpawnInicial{{x: 28295, y: 11063, z: -4224}, {x: 28302, y: 11008, z: -4224}, {x: 28377, y: 10916, z: -4224}, {x: 28456, y: 10997, z: -4224}, {x: 28461, y: 11044, z: -4224}, {x: 28395, y: 11127, z: -4224}}},
-	{nome: "Orc Fighter", classID: 44, baseLvl: 1, race: 3, str: 40, dex: 26, con: 47, intel: 18, wit: 12, men: 27, x: -56733, y: -113459, z: -690, maxHp: 80, maxMp: 30, maxCp: 32, pAtk: 4, pDef: 80, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 117, walkSpd: 80, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 11, radiusFeminino: 7, heightMasculino: 28, heightFeminino: 25, spawns: []locSpawnInicial{{x: -56733, y: -113459, z: -690}, {x: -56686, y: -113470, z: -690}, {x: -56728, y: -113610, z: -690}, {x: -56693, y: -113610, z: -690}, {x: -56743, y: -113757, z: -690}, {x: -56682, y: -113730, z: -690}}},
-	{nome: "Orc Mystic", classID: 49, baseLvl: 1, race: 3, str: 27, dex: 24, con: 31, intel: 31, wit: 15, men: 42, x: -56733, y: -113459, z: -690, maxHp: 95, maxMp: 40, maxCp: 47, pAtk: 3, pDef: 54, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 117, walkSpd: 80, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 7, radiusFeminino: 8, heightMasculino: 24, heightFeminino: 26, spawns: []locSpawnInicial{{x: -56733, y: -113459, z: -690}, {x: -56686, y: -113470, z: -690}, {x: -56728, y: -113610, z: -690}, {x: -56693, y: -113610, z: -690}, {x: -56743, y: -113757, z: -690}, {x: -56682, y: -113730, z: -690}}},
-	{nome: "Dwarf Fighter", classID: 53, baseLvl: 1, race: 4, str: 39, dex: 29, con: 45, intel: 20, wit: 10, men: 27, x: 108644, y: -173947, z: -400, maxHp: 80, maxMp: 30, maxCp: 32, pAtk: 4, pDef: 80, mAtk: 6, mDef: 41, baseAtkSpd: 300, baseCrit: 4, runSpd: 126, walkSpd: 87, swimSpd: 50, pAtkSpd: 300, mAtkSpd: 333, radiusMasculino: 9, radiusFeminino: 5, heightMasculino: 18.5, heightFeminino: 19, spawns: []locSpawnInicial{{x: 108644, y: -173947, z: -400}, {x: 108678, y: -174002, z: -400}, {x: 108505, y: -173964, z: -400}, {x: 108512, y: -174026, z: -400}, {x: 108549, y: -174075, z: -400}, {x: 108576, y: -174122, z: -400}}},
-}
-
-var templatesPersonagemInicial = clonarTemplatesPadrao(templatesPersonagemInicialPadrao)
+var templatesPersonagemInicial = map[int32]templatePersonagemInicial{}
 var templatesPersonagemInicialMu sync.RWMutex
 
 type xmlListaClasses struct {
@@ -85,6 +77,7 @@ type xmlClasse struct {
 type xmlSetClasse struct {
 	ID           string `xml:"id,attr"`
 	BaseLvl      string `xml:"baseLvl,attr"`
+	Fists        string `xml:"fists,attr"`
 	Str          string `xml:"str,attr"`
 	Con          string `xml:"con,attr"`
 	Dex          string `xml:"dex,attr"`
@@ -105,20 +98,15 @@ type xmlSetClasse struct {
 	HpTable      string `xml:"hpTable,attr"`
 	MpTable      string `xml:"mpTable,attr"`
 	CpTable      string `xml:"cpTable,attr"`
+	HpRegenTable string `xml:"hpRegenTable,attr"`
+	MpRegenTable string `xml:"mpRegenTable,attr"`
+	CpRegenTable string `xml:"cpRegenTable,attr"`
 }
 
 type xmlSpawnClasse struct {
 	X string `xml:"x,attr"`
 	Y string `xml:"y,attr"`
 	Z string `xml:"z,attr"`
-}
-
-func clonarTemplatesPadrao(origem []templatePersonagemInicial) map[int32]templatePersonagemInicial {
-	resultado := make(map[int32]templatePersonagemInicial, len(origem))
-	for _, template := range origem {
-		resultado[template.classID] = template
-	}
-	return resultado
 }
 
 func listarTemplatesPersonagemInicial() []templatePersonagemInicial {
@@ -135,18 +123,14 @@ func listarTemplatesPersonagemInicial() []templatePersonagemInicial {
 }
 
 func carregarTemplatesPersonagemInicial(datapackPath string) error {
-	novoMapa := clonarTemplatesPadrao(templatesPersonagemInicialPadrao)
+	novoMapa := make(map[int32]templatePersonagemInicial)
 	classesPath := filepath.Join(datapackPath, "data", "xml", "classes")
 	arquivos, err := filepath.Glob(filepath.Join(classesPath, "*.xml"))
 	if err != nil {
 		return err
 	}
 	if len(arquivos) == 0 {
-		logger.Warnf("Nenhum XML de classe encontrado em %s, usando templates padrao em memoria", classesPath)
-		templatesPersonagemInicialMu.Lock()
-		templatesPersonagemInicial = novoMapa
-		templatesPersonagemInicialMu.Unlock()
-		return nil
+		return os.ErrNotExist
 	}
 	for _, arquivo := range arquivos {
 		templatesArquivo, errArquivo := carregarTemplatesArquivoClasse(arquivo)
@@ -157,6 +141,9 @@ func carregarTemplatesPersonagemInicial(datapackPath string) error {
 		for _, template := range templatesArquivo {
 			novoMapa[template.classID] = template
 		}
+	}
+	if len(novoMapa) == 0 {
+		return os.ErrNotExist
 	}
 	templatesPersonagemInicialMu.Lock()
 	templatesPersonagemInicial = novoMapa
@@ -193,6 +180,7 @@ func converterXmlClasseParaTemplate(classe xmlClasse) (templatePersonagemInicial
 		if item.ID != "" {
 			template.classID = parseInt32Seguro(item.ID)
 			template.baseLvl = parseInt32Seguro(item.BaseLvl)
+			template.fistsItemID = parseInt32Seguro(item.Fists)
 		}
 		if item.Str != "" {
 			template.str = parseInt32Seguro(item.Str)
@@ -231,15 +219,61 @@ func converterXmlClasseParaTemplate(classe xmlClasse) (templatePersonagemInicial
 			template.cpTable = parseTabelaNivel(item.CpTable)
 			template.maxCp = obterValorTabelaPorNivel(template.cpTable, template.baseLvl)
 		}
+		if item.HpRegenTable != "" {
+			template.hpRegenTable = parseTabelaNivel(item.HpRegenTable)
+		}
+		if item.MpRegenTable != "" {
+			template.mpRegenTable = parseTabelaNivel(item.MpRegenTable)
+		}
+		if item.CpRegenTable != "" {
+			template.cpRegenTable = parseTabelaNivel(item.CpRegenTable)
+		}
 	}
 	if template.classID == 0 && !strings.Contains(strings.ToLower(template.nome), "human fighter") {
 		return templatePersonagemInicial{}, false
 	}
+	if template.baseLvl <= 0 {
+		template.baseLvl = 1
+	}
+	if len(template.hpTable) == 0 {
+		template.hpTable = []int32{1}
+	}
+	if len(template.mpTable) == 0 {
+		template.mpTable = []int32{1}
+	}
+	if len(template.cpTable) == 0 {
+		template.cpTable = []int32{0}
+	}
+	if len(template.hpRegenTable) == 0 {
+		template.hpRegenTable = []int32{1}
+	}
+	if len(template.mpRegenTable) == 0 {
+		template.mpRegenTable = []int32{1}
+	}
+	if len(template.cpRegenTable) == 0 {
+		template.cpRegenTable = []int32{1}
+	}
+	template.maxHp = obterValorTabelaPorNivel(template.hpTable, template.baseLvl)
+	template.maxMp = obterValorTabelaPorNivel(template.mpTable, template.baseLvl)
+	template.maxCp = obterValorTabelaPorNivel(template.cpTable, template.baseLvl)
 	template.race = obterRacePorClassID(template.classID)
-	template.baseAtkSpd = 300
-	template.baseCrit = 4
+	template.baseAtkSpd = obterBaseAtkSpdClasse(template.fistsItemID)
+	if template.baseCrit <= 0 {
+		template.baseCrit = 4
+	}
 	template.pAtkSpd = template.baseAtkSpd
-	template.mAtkSpd = 333
+	if template.mAtkSpd <= 0 {
+		template.mAtkSpd = 333
+	}
+	if template.runSpd <= 0 {
+		template.runSpd = 120
+	}
+	if template.walkSpd <= 0 {
+		template.walkSpd = 80
+	}
+	if template.swimSpd <= 0 {
+		template.swimSpd = 50
+	}
 	for _, spawn := range classe.Spawns {
 		loc := locSpawnInicial{
 			x: parseInt32Seguro(spawn.X),
@@ -254,6 +288,29 @@ func converterXmlClasseParaTemplate(classe xmlClasse) (templatePersonagemInicial
 		template.z = template.spawns[0].z
 	}
 	return template, true
+}
+
+func obterBaseAtkSpdClasse(itemID int32) int32 {
+	if itemID <= 0 {
+		return 300
+	}
+	pAtkSpd, ok := obterPAtkSpdArma(itemID)
+	if ok && pAtkSpd > 0 {
+		return pAtkSpd
+	}
+	return 300
+}
+
+func (t templatePersonagemInicial) obterHpRegenPorNivel(nivel int32) int32 {
+	return obterValorTabelaPorNivel(t.hpRegenTable, nivel)
+}
+
+func (t templatePersonagemInicial) obterMpRegenPorNivel(nivel int32) int32 {
+	return obterValorTabelaPorNivel(t.mpRegenTable, nivel)
+}
+
+func (t templatePersonagemInicial) obterCpRegenPorNivel(nivel int32) int32 {
+	return obterValorTabelaPorNivel(t.cpRegenTable, nivel)
 }
 
 func obterRacePorClassID(classID int32) int32 {

@@ -39,19 +39,25 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 	origemX := g.playerAtivo.x
 	origemY := g.playerAtivo.y
 	origemZ := g.playerAtivo.z
-	if g.playerAtivo.estaMovendo() {
-		origemX = g.playerAtivo.origemMovX
-		origemY = g.playerAtivo.origemMovY
-		origemZ = g.playerAtivo.origemMovZ
-	}
 	if distancia3D(origemX, origemY, origemZ, packet.x, packet.y, packet.z) > desyncMaximoValidate && !g.playerAtivo.estaMovendo() {
 		return g.enviarPacket(montarValidateLocationPacket(g.playerAtivo))
 	}
+	if g.playerAtivo.estaMovendo() {
+		distanciaClienteServidor := distancia3D(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
+		if distanciaClienteServidor > desyncMaximoValidate*2 {
+			return g.enviarPacket(montarValidateLocationPacket(g.playerAtivo))
+		}
+		xAjustado, yAjustado, zAjustado := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
+		g.playerAtivo.aplicarPosicao(xAjustado, yAjustado, zAjustado, packet.heading)
+		if distancia3D(xAjustado, yAjustado, zAjustado, g.playerAtivo.destinoX, g.playerAtivo.destinoY, g.playerAtivo.destinoZ) <= desyncMaximoValidate {
+			g.playerAtivo.pararMovimento()
+		}
+		g.sincronizarPersonagemAtualComPlayerAtivo()
+		g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))
+		return nil
+	}
 	xAjustado, yAjustado, zAjustado := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
 	g.playerAtivo.aplicarPosicao(xAjustado, yAjustado, zAjustado, packet.heading)
-	if g.playerAtivo.estaMovendo() && distancia3D(xAjustado, yAjustado, zAjustado, g.playerAtivo.destinoX, g.playerAtivo.destinoY, g.playerAtivo.destinoZ) <= desyncMaximoValidate {
-		g.playerAtivo.pararMovimento()
-	}
 	g.sincronizarPersonagemAtualComPlayerAtivo()
 	g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))
 	return nil

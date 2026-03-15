@@ -55,6 +55,13 @@ type CharacterItem struct {
 	Time         int64  `bson:"time"`
 }
 
+type CharacterAugmentation struct {
+	ItemOID    int32 `bson:"item_oid"`
+	Attributes int32 `bson:"attributes"`
+	SkillID    int32 `bson:"skill_id"`
+	SkillLevel int32 `bson:"skill_level"`
+}
+
 type CharacterHennaRepository struct {
 	collection *mongo.Collection
 }
@@ -75,6 +82,10 @@ type CharacterItemRepository struct {
 	collection *mongo.Collection
 }
 
+type CharacterAugmentationRepository struct {
+	collection *mongo.Collection
+}
+
 type CharacterDataRepositories struct {
 	Characters          *CharacterRepository
 	CharacterHennas     *CharacterHennaRepository
@@ -82,6 +93,7 @@ type CharacterDataRepositories struct {
 	CharacterShortcuts  *CharacterShortcutRepository
 	CharacterSubclasses *CharacterSubclassRepository
 	CharacterItems      *CharacterItemRepository
+	CharacterAugments   *CharacterAugmentationRepository
 }
 
 func NewCharacterDataRepositories(db *mongo.Database) *CharacterDataRepositories {
@@ -92,6 +104,7 @@ func NewCharacterDataRepositories(db *mongo.Database) *CharacterDataRepositories
 		CharacterShortcuts:  NewCharacterShortcutRepository(db),
 		CharacterSubclasses: NewCharacterSubclassRepository(db),
 		CharacterItems:      NewCharacterItemRepository(db),
+		CharacterAugments:   NewCharacterAugmentationRepository(db),
 	}
 }
 
@@ -115,6 +128,10 @@ func NewCharacterItemRepository(db *mongo.Database) *CharacterItemRepository {
 	return &CharacterItemRepository{collection: db.Collection("items")}
 }
 
+func NewCharacterAugmentationRepository(db *mongo.Database) *CharacterAugmentationRepository {
+	return &CharacterAugmentationRepository{collection: db.Collection("augmentations")}
+}
+
 func (r *CharacterHennaRepository) ListarPorPersonagem(ctx context.Context, objID int32, classIndex int32) ([]CharacterHenna, error) {
 	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
@@ -126,6 +143,56 @@ func (r *CharacterHennaRepository) ListarPorPersonagem(ctx context.Context, objI
 	resultado := make([]CharacterHenna, 0)
 	for cursor.Next(ctxTimeout) {
 		var item CharacterHenna
+		errDecode := cursor.Decode(&item)
+		if errDecode != nil {
+			return nil, errDecode
+		}
+		resultado = append(resultado, item)
+	}
+	if err = cursor.Err(); err != nil {
+		return nil, err
+	}
+	return resultado, nil
+}
+
+func (r *CharacterSkillRepository) InserirLote(ctx context.Context, skills []CharacterSkill) error {
+	if len(skills) == 0 {
+		return nil
+	}
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	for _, skill := range skills {
+		filtro := bson.M{
+			"char_obj_id": skill.CharObjID,
+			"class_index": skill.ClassIndex,
+			"skill_id":    skill.SkillID,
+		}
+		_, err := r.collection.DeleteMany(ctxTimeout, filtro)
+		if err != nil {
+			return err
+		}
+		_, err = r.collection.InsertOne(ctxTimeout, skill)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *CharacterAugmentationRepository) ListarPorItens(ctx context.Context, objectIDs []int32) ([]CharacterAugmentation, error) {
+	if len(objectIDs) == 0 {
+		return []CharacterAugmentation{}, nil
+	}
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	cursor, err := r.collection.Find(ctxTimeout, bson.M{"item_oid": bson.M{"$in": objectIDs}})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctxTimeout)
+	resultado := make([]CharacterAugmentation, 0)
+	for cursor.Next(ctxTimeout) {
+		var item CharacterAugmentation
 		errDecode := cursor.Decode(&item)
 		if errDecode != nil {
 			return nil, errDecode

@@ -77,7 +77,11 @@ func calcularStatsPersonagem(template templatePersonagemInicial, nivel int32, it
 	if baseMDef < 1 {
 		baseMDef = 1
 	}
-	basePAtkSpd := float64(obterBaseAtkSpdFisico(itens))
+	basePAtkSpd := float64(statsCalculadasBasePAtkSpd(template, itens))
+	baseMAtkSpd := float64(template.mAtkSpd)
+	if baseMAtkSpd < 1 {
+		baseMAtkSpd = 333
+	}
 	resultado := statsCalculadasPersonagem{
 		hpMaximo: int32(math.Round(float64(template.obterHpMaximoPorNivel(nivel)) * bonusCon)),
 		mpMaximo: int32(math.Round(float64(template.obterMpMaximoPorNivel(nivel)) * bonusMen)),
@@ -87,10 +91,10 @@ func calcularStatsPersonagem(template templatePersonagemInicial, nivel int32, it
 		pDef:     int32(math.Round(basePDef * levelMod)),
 		mDef:     int32(math.Round(baseMDef * bonusMen * levelMod)),
 		pAtkSpd:  int32(math.Round(basePAtkSpd * bonusDex)),
-		mAtkSpd:  int32(math.Round(333.0 * bonusWit)),
+		mAtkSpd:  int32(math.Round(baseMAtkSpd * bonusWit)),
 		runSpd:   int32(math.Round(float64(template.runSpd) * bonusDex)),
-		walkSpd:  template.walkSpd,
-		swimSpd:  template.swimSpd,
+		walkSpd:  int32(math.Round(float64(template.walkSpd) * bonusDex)),
+		swimSpd:  int32(math.Round(float64(template.swimSpd) * bonusDex)),
 		evasao:   int32(math.Round(baseEvasaoPrecisaoFormula[template.dex])),
 		precisao: int32(math.Round(baseEvasaoPrecisaoFormula[template.dex] + float64(nivel))),
 		critico:  int32(math.Round(float64(template.baseCrit) * bonusDex * 10.0)),
@@ -121,6 +125,18 @@ func calcularStatsPersonagem(template templatePersonagemInicial, nivel int32, it
 	}
 	if resultado.mAtkSpd < 1 {
 		resultado.mAtkSpd = 1
+	}
+	if resultado.runSpd < 1 {
+		resultado.runSpd = 1
+	}
+	if resultado.walkSpd < 1 {
+		resultado.walkSpd = 1
+	}
+	if resultado.swimSpd < 1 {
+		resultado.swimSpd = 1
+	}
+	if resultado.critico < 1 {
+		resultado.critico = 1
 	}
 	return resultado
 }

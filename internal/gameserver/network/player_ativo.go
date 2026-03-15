@@ -69,6 +69,10 @@ type playerAtivo struct {
 	alvoObjID        int32
 	sentado          bool
 	correndo         bool
+	ultimoMoveX      int32
+	ultimoMoveY      int32
+	ultimoMoveZ      int32
+	ultimoPersistMs  int64
 }
 
 func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
@@ -126,6 +130,9 @@ func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
 		baseClass:        slot.BaseClass,
 		correndo:         true,
 	}
+	player.ultimoMoveX = player.x
+	player.ultimoMoveY = player.y
+	player.ultimoMoveZ = player.z
 	player.atualizarRegiao()
 	return player
 }

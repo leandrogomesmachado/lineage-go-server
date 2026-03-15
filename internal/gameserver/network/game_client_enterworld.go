@@ -99,6 +99,15 @@ func (g *gameClient) carregarDadosAuxiliaresPersonagem() {
 		g.skillsAtivas = listarSkillsIniciaisClasse(g.personagemAtual.ClassID, g.personagemAtual.Level)
 		for indice := range g.skillsAtivas {
 			g.skillsAtivas[indice].CharObjID = g.personagemAtual.ObjID
+			g.skillsAtivas[indice].ClassIndex = classIndex
+		}
+	}
+	quantidadeSkillsAntes := len(g.skillsAtivas)
+	g.skillsAtivas = consolidarSkillsParaSkillList(g.skillsAtivas)
+	if errSkills == nil && len(g.skillsAtivas) != quantidadeSkillsAntes {
+		errLimpezaSkills := g.server.repositorios.CharacterSkills.InserirLote(ctx, g.skillsAtivas)
+		if errLimpezaSkills != nil {
+			logger.Warnf("Falha ao consolidar skills persistidas do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errLimpezaSkills)
 		}
 	}
 	atalhos, errAtalhos := g.server.repositorios.CharacterShortcuts.ListarPorPersonagem(ctx, g.personagemAtual.ObjID, classIndex)
@@ -246,6 +255,32 @@ func (g *gameClient) posicaoPareceSegura(x int32, y int32, z int32, template tem
 func (g *gameClient) sincronizarVisibilidadeAoEntrarNoMundo() error {
 	if g.playerAtivo == nil {
 		return nil
+	}
+	npcsVisiveis := g.server.mundo.listarNpcsVisiveisPara(g)
+	npcsGlobais := g.server.mundo.listarNpcsGlobais()
+	logger.Infof("EnterWorld visibilidade NPCs conta=%s personagem=%s objID=%d npcsVisiveis=%d npcsGlobais=%d pos=(%d,%d,%d)", g.conta, g.personagemAtual.CharName, g.personagemAtual.ObjID, len(npcsVisiveis), len(npcsGlobais), g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z)
+	amostraProximos := 0
+	for _, npc := range npcsGlobais {
+		if npc == nil {
+			continue
+		}
+		distancia := distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, npc.x, npc.y, npc.z)
+		if distancia > 1200 {
+			continue
+		}
+		logger.Infof("NPC global proximo conta=%s objIDNpc=%d npcID=%d nome=%s distancia=%.2f posNpc=(%d,%d,%d)", g.conta, npc.objID, npc.npcID, npc.nome, distancia, npc.x, npc.y, npc.z)
+		amostraProximos++
+		if amostraProximos >= 5 {
+			break
+		}
+	}
+	for _, npc := range npcsVisiveis {
+		if npc == nil {
+			continue
+		}
+		if err := g.enviarPacket(montarNpcGlobalInfoPacket(npc)); err != nil {
+			return err
+		}
 	}
 	visiveis := g.server.mundo.listarVisiveisPara(g)
 	for _, outroCliente := range visiveis {

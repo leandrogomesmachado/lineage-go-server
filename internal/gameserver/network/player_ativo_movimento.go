@@ -12,6 +12,9 @@ func (p *playerAtivo) iniciarMovimento(destinoX int32, destinoY int32, destinoZ 
 	p.destinoY = destinoY
 	p.destinoZ = destinoZ
 	p.heading = heading
+	p.ultimoMoveX = p.x
+	p.ultimoMoveY = p.y
+	p.ultimoMoveZ = p.z
 }
 
 func (p *playerAtivo) pararMovimento() {
@@ -25,6 +28,9 @@ func (p *playerAtivo) pararMovimento() {
 	p.destinoX = p.x
 	p.destinoY = p.y
 	p.destinoZ = p.z
+	p.ultimoMoveX = p.x
+	p.ultimoMoveY = p.y
+	p.ultimoMoveZ = p.z
 }
 
 func (p *playerAtivo) estaMovendo() bool {
