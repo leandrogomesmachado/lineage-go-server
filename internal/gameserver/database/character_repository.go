@@ -36,14 +36,21 @@ type CharacterSlot struct {
 	PvpKills             int32  `bson:"pvpkills"`
 	PkKills              int32  `bson:"pkkills"`
 	ClanID               int32  `bson:"clanid"`
+	ClanCrestID          int32  `bson:"clan_crest_id"`
+	ClanCrestLargeID     int32  `bson:"clan_crest_large_id"`
+	AllyID               int32  `bson:"ally_id"`
+	AllyCrestID          int32  `bson:"ally_crest_id"`
 	Race                 int32  `bson:"race"`
 	ClassID              int32  `bson:"classid"`
 	BaseClass            int32  `bson:"base_class"`
 	DeleteTime           int64  `bson:"deletetime"`
 	Title                string `bson:"title"`
+	NameColor            int32  `bson:"name_color"`
+	TitleColor           int32  `bson:"title_color"`
 	Heading              int32  `bson:"heading"`
 	RecHave              int32  `bson:"rec_have"`
 	RecLeft              int32  `bson:"rec_left"`
+	ClanPrivileges       int32  `bson:"clan_privileges"`
 	Online               int32  `bson:"online"`
 	OnlineTime           int32  `bson:"onlinetime"`
 	WantsPeace           int32  `bson:"wantspeace"`
@@ -54,13 +61,26 @@ type CharacterSlot struct {
 	Nobless              int32  `bson:"nobless"`
 	Hero                 int32  `bson:"hero"`
 	SubPledge            int32  `bson:"subpledge"`
+	PledgeClass          int32  `bson:"pledge_class"`
+	PledgeType           int32  `bson:"pledge_type"`
 	LvlJoinedAcademy     int32  `bson:"lvl_joined_academy"`
 	Apprentice           int32  `bson:"apprentice"`
 	Sponsor              int32  `bson:"sponsor"`
 	VarkaKetraAlly       int32  `bson:"varka_ketra_ally"`
+	MountType            int32  `bson:"mount_type"`
+	MountNpcID           int32  `bson:"mount_npc_id"`
+	OperateType          int32  `bson:"operate_type"`
+	Team                 int32  `bson:"team"`
+	AbnormalEffect       int32  `bson:"abnormal_effect"`
+	Fishing              int32  `bson:"fishing"`
+	FishingX             int32  `bson:"fishing_x"`
+	FishingY             int32  `bson:"fishing_y"`
+	FishingZ             int32  `bson:"fishing_z"`
+	Relation             int32  `bson:"relation"`
 	ClanJoinExpiryTime   int64  `bson:"clan_join_expiry_time"`
 	ClanCreateExpiryTime int64  `bson:"clan_create_expiry_time"`
 	DeathPenaltyLevel    int32  `bson:"death_penalty_level"`
+	Running              bool   `bson:"running"`
 	AccessLevel          int32  `bson:"accesslevel"`
 	LastAccess           int64  `bson:"lastAccess"`
 }

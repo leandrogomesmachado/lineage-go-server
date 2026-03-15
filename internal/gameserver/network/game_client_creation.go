@@ -93,7 +93,11 @@ func (g *gameClient) validarCriacaoPersonagem(packet *requestCharacterCreatePack
 
 func (g *gameClient) criarPersonagem(packet *requestCharacterCreatePacket, template templatePersonagemInicial) error {
 	spawnInicial := template.obterSpawnInicial(int32(len(strings.TrimSpace(packet.nome))))
-	cpInicial := template.obterCpMaximoPorNivel(1)
+	statsCalculadas := calcularStatsPersonagem(template, 1, []itemPapelBoneca{})
+	cpInicial := int32(0)
+	if statsCalculadas.cpMaximo > 0 {
+		cpInicial = statsCalculadas.cpMaximo / 2
+	}
 	entrada := gsdb.CharacterCreateInput{
 		AccountName: g.conta,
 		CharName:    strings.TrimSpace(packet.nome),
@@ -108,17 +112,32 @@ func (g *gameClient) criarPersonagem(packet *requestCharacterCreatePacket, templ
 		Y:           spawnInicial.y,
 		Z:           spawnInicial.z,
 		Level:       1,
-		MaxHp:       template.maxHp,
-		CurHp:       template.maxHp,
-		MaxMp:       template.maxMp,
-		CurMp:       template.maxMp,
-		MaxCp:       cpInicial,
+		MaxHp:       statsCalculadas.hpMaximo,
+		CurHp:       statsCalculadas.hpMaximo,
+		MaxMp:       statsCalculadas.mpMaximo,
+		CurMp:       statsCalculadas.mpMaximo,
+		MaxCp:       statsCalculadas.cpMaximo,
 		CurCp:       cpInicial,
 		Exp:         0,
 		Sp:          0,
 		Title:       "",
+		NameColor:   0xFFFFFF,
+		TitleColor:  0xFFFF77,
 		AccessLevel: 0,
 	}
-	_, err := g.server.characterRepo.Create(context.Background(), entrada)
-	return err
+	slotCriado, err := g.server.characterRepo.Create(context.Background(), entrada)
+	if err != nil {
+		return err
+	}
+	if g.server.repositorios == nil {
+		return nil
+	}
+	if g.server.repositorios.CharacterSkills == nil {
+		return nil
+	}
+	skillsIniciais := listarSkillsIniciaisClasse(packet.classID, 1)
+	for i := range skillsIniciais {
+		skillsIniciais[i].CharObjID = slotCriado.ObjID
+	}
+	return g.server.repositorios.CharacterSkills.InserirLote(context.Background(), skillsIniciais)
 }

@@ -45,9 +45,10 @@ func (g *gameClient) normalizarStatusPersonagemPorTemplate() {
 		nivel = 1
 		g.personagemAtual.Level = 1
 	}
-	hpMaximo := template.obterHpMaximoPorNivel(nivel)
-	mpMaximo := template.obterMpMaximoPorNivel(nivel)
-	cpMaximo := template.obterCpMaximoPorNivel(nivel)
+	statsCalculadas := calcularStatsPersonagem(template, nivel, []itemPapelBoneca{})
+	hpMaximo := statsCalculadas.hpMaximo
+	mpMaximo := statsCalculadas.mpMaximo
+	cpMaximo := statsCalculadas.cpMaximo
 	if hpMaximo > 0 {
 		g.personagemAtual.MaxHp = hpMaximo
 	}
@@ -94,6 +95,12 @@ func (g *gameClient) carregarDadosAuxiliaresPersonagem() {
 	if errSkills != nil {
 		logger.Warnf("Falha ao carregar skills do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errSkills)
 	}
+	if len(g.skillsAtivas) == 0 {
+		g.skillsAtivas = listarSkillsIniciaisClasse(g.personagemAtual.ClassID, g.personagemAtual.Level)
+		for indice := range g.skillsAtivas {
+			g.skillsAtivas[indice].CharObjID = g.personagemAtual.ObjID
+		}
+	}
 	atalhos, errAtalhos := g.server.repositorios.CharacterShortcuts.ListarPorPersonagem(ctx, g.personagemAtual.ObjID, classIndex)
 	if errAtalhos == nil {
 		g.atalhosAtivos = atalhos
@@ -115,6 +122,19 @@ func (g *gameClient) carregarDadosAuxiliaresPersonagem() {
 	if errItens != nil {
 		logger.Warnf("Falha ao carregar itens do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errItens)
 	}
+	if errItens == nil && g.server.repositorios.CharacterAugments != nil {
+		objectIDs := make([]int32, 0, len(itens))
+		for _, item := range itens {
+			objectIDs = append(objectIDs, item.ObjectID)
+		}
+		augmentacoes, errAugment := g.server.repositorios.CharacterAugments.ListarPorItens(ctx, objectIDs)
+		if errAugment == nil {
+			g.augmentacoesAtivas = augmentacoes
+		}
+		if errAugment != nil {
+			logger.Warnf("Falha ao carregar augmentations do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, errAugment)
+		}
+	}
 }
 
 func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
@@ -126,7 +146,9 @@ func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 	g.normalizarStatusPersonagemPorTemplate()
 	g.garantirSpawnSeguro()
 	g.playerAtivo = novoPlayerAtivo(g.conta, *g.personagemAtual)
+	g.inicializarTrainerPessoal()
 	g.carregarDadosAuxiliaresPersonagem()
+	g.sincronizarSkillsAutoLearn()
 	if err := g.server.characterRepo.AtualizarLastAccess(context.Background(), g.personagemAtual.ObjID); err != nil {
 		logger.Warnf("Falha ao atualizar lastAccess do personagem %s objID=%d: %v", g.personagemAtual.CharName, g.personagemAtual.ObjID, err)
 	}
@@ -145,19 +167,22 @@ func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 	if err := g.enviarPacket(montarEtcStatusUpdatePacket()); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarUserInfoPacket(*g.personagemAtual, g.itensAtivos)); err != nil {
+	if err := g.enviarUserInfoAtualizado(); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarItemListPacket(g.itensAtivos)); err != nil {
+	if err := g.enviarPacket(montarItemListPacket(g.itensAtivos, g.augmentacoesAtivas)); err != nil {
 		return err
 	}
-	if err := g.enviarPacket(montarShortCutInitPacket(g.atalhosAtivos)); err != nil {
+	if err := g.enviarPacket(montarShortCutInitPacket(g.atalhosAtivos, g.itensAtivos, g.augmentacoesAtivas)); err != nil {
 		return err
 	}
 	if err := g.enviarPacket(montarSkillCoolTimePacket()); err != nil {
 		return err
 	}
 	if err := g.sincronizarVisibilidadeAoEntrarNoMundo(); err != nil {
+		return err
+	}
+	if err := g.enviarTrainerPessoal(); err != nil {
 		return err
 	}
 	return g.enviarPacket(montarActionFailedPacket())
@@ -230,10 +255,10 @@ func (g *gameClient) sincronizarVisibilidadeAoEntrarNoMundo() error {
 		if outroCliente.playerAtivo == nil {
 			continue
 		}
-		if err := g.enviarPacket(montarCharInfoPacket(outroCliente.playerAtivo, outroCliente.itensAtivos)); err != nil {
+		if err := g.enviarPacket(montarCharInfoPacket(outroCliente.playerAtivo, outroCliente.itensAtivos, outroCliente.augmentacoesAtivas, outroCliente.playerAtivo.listarCubics())); err != nil {
 			return err
 		}
-		err := outroCliente.enviarPacket(montarCharInfoPacket(g.playerAtivo, g.itensAtivos))
+		err := outroCliente.enviarPacket(montarCharInfoPacket(g.playerAtivo, g.itensAtivos, g.augmentacoesAtivas, g.playerAtivo.listarCubics()))
 		if err != nil {
 			logger.Warnf("Falha ao enviar CharInfo de %s para %s: %v", g.playerAtivo.nome, outroCliente.playerAtivo.nome, err)
 		}
