@@ -14,6 +14,10 @@ type territorioSpawn struct {
 	nome string
 	minZ int32
 	maxZ int32
+	minX int32
+	maxX int32
+	minY int32
+	maxY int32
 	nos  []pontoTerritorio
 }
 
@@ -28,12 +32,18 @@ type npcSpawnGlobalTemplate struct {
 	respawn     string
 	respawnRand string
 	pos         string
+	dbName      string
+	dbSaving    string
+	aiParams    npcAiParametros
 }
 
 type makerSpawnGlobalTemplate struct {
 	nome           string
 	territorioNome string
 	tipoAI         string
+	evento         string
+	maximumNpcs    int32
+	aiParams       npcAiParametros
 	npcs           []npcSpawnGlobalTemplate
 }
 
@@ -43,14 +53,14 @@ type spawnGlobalTemplate struct {
 }
 
 type xmlListaSpawnGlobal struct {
-	Territorios []xmlTerritorioSpawn  `xml:"territory"`
-	NpcMakers   []xmlNpcMakerSpawn    `xml:"npcmaker"`
+	Territorios []xmlTerritorioSpawn `xml:"territory"`
+	NpcMakers   []xmlNpcMakerSpawn   `xml:"npcmaker"`
 }
 
 type xmlTerritorioSpawn struct {
-	Name string                `xml:"name,attr"`
-	MinZ string                `xml:"minZ,attr"`
-	MaxZ string                `xml:"maxZ,attr"`
+	Name string                 `xml:"name,attr"`
+	MinZ string                 `xml:"minZ,attr"`
+	MaxZ string                 `xml:"maxZ,attr"`
 	Nos  []xmlNoTerritorioSpawn `xml:"node"`
 }
 
@@ -60,22 +70,28 @@ type xmlNoTerritorioSpawn struct {
 }
 
 type xmlNpcMakerSpawn struct {
-	Name      string               `xml:"name,attr"`
-	Territory string               `xml:"territory,attr"`
-	AIs       []xmlAiMakerSpawn    `xml:"ai"`
-	Npcs      []xmlNpcSpawnGlobal  `xml:"npc"`
+	Name        string              `xml:"name,attr"`
+	Territory   string              `xml:"territory,attr"`
+	Event       string              `xml:"event,attr"`
+	MaximumNpcs string              `xml:"maximumNpcs,attr"`
+	AIs         []xmlAiMakerSpawn   `xml:"ai"`
+	Npcs        []xmlNpcSpawnGlobal `xml:"npc"`
 }
 
 type xmlAiMakerSpawn struct {
-	Type string `xml:"type,attr"`
+	Type string      `xml:"type,attr"`
+	Sets []xmlNpcSet `xml:"set"`
 }
 
 type xmlNpcSpawnGlobal struct {
-	ID          string `xml:"id,attr"`
-	Total       string `xml:"total,attr"`
-	Respawn     string `xml:"respawn,attr"`
-	RespawnRand string `xml:"respawnRand,attr"`
-	Pos         string `xml:"pos,attr"`
+	ID          string      `xml:"id,attr"`
+	Total       string      `xml:"total,attr"`
+	Respawn     string      `xml:"respawn,attr"`
+	RespawnRand string      `xml:"respawnRand,attr"`
+	Pos         string      `xml:"pos,attr"`
+	DbName      string      `xml:"dbName,attr"`
+	DbSaving    string      `xml:"dbSaving,attr"`
+	AiSets      []xmlNpcSet `xml:"ai>set"`
 }
 
 var spawnGlobalAtual = spawnGlobalTemplate{territorios: map[string]territorioSpawn{}, makers: []makerSpawnGlobalTemplate{}}
@@ -103,7 +119,27 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 		for _, territorioXml := range lista.Territorios {
 			territorio := territorioSpawn{nome: strings.TrimSpace(territorioXml.Name), minZ: parseInt32Seguro(territorioXml.MinZ), maxZ: parseInt32Seguro(territorioXml.MaxZ), nos: make([]pontoTerritorio, 0, len(territorioXml.Nos))}
 			for _, no := range territorioXml.Nos {
-				territorio.nos = append(territorio.nos, pontoTerritorio{x: parseInt32Seguro(no.X), y: parseInt32Seguro(no.Y)})
+				ponto := pontoTerritorio{x: parseInt32Seguro(no.X), y: parseInt32Seguro(no.Y)}
+				territorio.nos = append(territorio.nos, ponto)
+				if len(territorio.nos) == 1 {
+					territorio.minX = ponto.x
+					territorio.maxX = ponto.x
+					territorio.minY = ponto.y
+					territorio.maxY = ponto.y
+					continue
+				}
+				if ponto.x < territorio.minX {
+					territorio.minX = ponto.x
+				}
+				if ponto.x > territorio.maxX {
+					territorio.maxX = ponto.x
+				}
+				if ponto.y < territorio.minY {
+					territorio.minY = ponto.y
+				}
+				if ponto.y > territorio.maxY {
+					territorio.maxY = ponto.y
+				}
 			}
 			if territorio.nome == "" {
 				continue
@@ -114,13 +150,20 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 			template.territorios[territorio.nome] = territorio
 		}
 		for _, makerXml := range lista.NpcMakers {
-			maker := makerSpawnGlobalTemplate{nome: strings.TrimSpace(makerXml.Name), territorioNome: strings.TrimSpace(makerXml.Territory), npcs: make([]npcSpawnGlobalTemplate, 0, len(makerXml.Npcs))}
+			maker := makerSpawnGlobalTemplate{nome: strings.TrimSpace(makerXml.Name), territorioNome: strings.TrimSpace(makerXml.Territory), evento: strings.TrimSpace(makerXml.Event), maximumNpcs: parseInt32Seguro(strings.TrimSpace(makerXml.MaximumNpcs)), aiParams: novoNpcAiParametros(), npcs: make([]npcSpawnGlobalTemplate, 0, len(makerXml.Npcs))}
 			for _, ai := range makerXml.AIs {
 				maker.tipoAI = strings.TrimSpace(ai.Type)
+				for _, aiSet := range ai.Sets {
+					maker.aiParams.aplicar(aiSet.Name, aiSet.Val)
+				}
 				break
 			}
 			for _, npcXml := range makerXml.Npcs {
-				maker.npcs = append(maker.npcs, npcSpawnGlobalTemplate{npcID: parseInt32Seguro(npcXml.ID), total: parseInt32Seguro(npcXml.Total), respawn: strings.TrimSpace(npcXml.Respawn), respawnRand: strings.TrimSpace(npcXml.RespawnRand), pos: strings.TrimSpace(npcXml.Pos)})
+				npcTemplate := npcSpawnGlobalTemplate{npcID: parseInt32Seguro(npcXml.ID), total: parseInt32Seguro(npcXml.Total), respawn: strings.TrimSpace(npcXml.Respawn), respawnRand: strings.TrimSpace(npcXml.RespawnRand), pos: strings.TrimSpace(npcXml.Pos), dbName: strings.TrimSpace(npcXml.DbName), dbSaving: strings.TrimSpace(npcXml.DbSaving), aiParams: novoNpcAiParametros()}
+				for _, aiSet := range npcXml.AiSets {
+					npcTemplate.aiParams.aplicar(aiSet.Name, aiSet.Val)
+				}
+				maker.npcs = append(maker.npcs, npcTemplate)
 			}
 			if maker.nome == "" {
 				continue

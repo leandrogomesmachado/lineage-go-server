@@ -4,25 +4,22 @@ func (g *gameClient) processarAction(packet *actionPacket) error {
 	if g.playerAtivo == nil {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
+	g.playerAtivo.removerProtecaoSpawn()
 	_ = packet.originX
 	_ = packet.originY
 	_ = packet.originZ
 	_ = packet.shiftPressed
-	if g.trainerPessoal != nil && packet.objID == g.trainerPessoal.objID {
-		g.playerAtivo.definirAlvo(g.trainerPessoal.objID)
-		if err := g.enviarPacket(montarMyTargetSelectedPacket(g.trainerPessoal.objID, 0)); err != nil {
-			return err
-		}
-		return g.enviarHtmlTrainer()
-	}
 	npcGlobal := g.server.mundo.obterNpcPorObjID(packet.objID)
 	if npcGlobal != nil {
+		if npcGlobal.ehMonster && g.playerAtivo.alvoObjID == npcGlobal.objID {
+			return g.processarAttackRequest(&attackRequestPacket{objID: npcGlobal.objID, originX: packet.originX, originY: packet.originY, originZ: packet.originZ, shiftPressed: packet.shiftPressed})
+		}
 		g.playerAtivo.definirAlvo(npcGlobal.objID)
 		if err := g.enviarPacket(montarMyTargetSelectedPacket(npcGlobal.objID, 0)); err != nil {
 			return err
 		}
 		if !npcGlobal.ehMonster {
-			return g.enviarPacket(montarActionFailedPacket())
+			return g.enviarHtmlNpcGlobal(npcGlobal)
 		}
 		return g.enviarPacket(montarActionFailedPacket())
 	}
@@ -52,6 +49,7 @@ func (g *gameClient) processarRequestActionUse(packet *requestActionUsePacket) e
 	if g.playerAtivo == nil {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
+	g.playerAtivo.removerProtecaoSpawn()
 	_ = packet.ctrlPressed
 	_ = packet.shiftPressed
 	if packet.actionID == acaoProximoAlvo {

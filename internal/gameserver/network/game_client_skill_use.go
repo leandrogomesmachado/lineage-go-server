@@ -6,6 +6,7 @@ func (g *gameClient) processarRequestMagicSkillUse(packet *requestMagicSkillUseP
 	if g.playerAtivo == nil {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
+	g.playerAtivo.removerProtecaoSpawn()
 	if !g.personagemTemSkill(packet.skillID) {
 		return g.enviarPacket(montarActionFailedPacket())
 	}

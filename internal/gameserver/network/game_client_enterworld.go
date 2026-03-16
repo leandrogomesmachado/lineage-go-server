@@ -155,7 +155,7 @@ func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 	g.normalizarStatusPersonagemPorTemplate()
 	g.garantirSpawnSeguro()
 	g.playerAtivo = novoPlayerAtivo(g.conta, *g.personagemAtual)
-	g.inicializarTrainerPessoal()
+	g.playerAtivo.ativarProtecaoSpawn()
 	g.carregarDadosAuxiliaresPersonagem()
 	g.sincronizarSkillsAutoLearn()
 	if err := g.server.characterRepo.AtualizarLastAccess(context.Background(), g.personagemAtual.ObjID); err != nil {
@@ -189,9 +189,6 @@ func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 		return err
 	}
 	if err := g.sincronizarVisibilidadeAoEntrarNoMundo(); err != nil {
-		return err
-	}
-	if err := g.enviarTrainerPessoal(); err != nil {
 		return err
 	}
 	return g.enviarPacket(montarActionFailedPacket())

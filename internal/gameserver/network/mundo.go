@@ -45,6 +45,12 @@ func (m *mundoGameServer) limparNpcs() {
 	m.npcs = make(map[int32]*npcGlobalRuntime)
 }
 
+func (m *mundoGameServer) removerNpc(objID int32) {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	delete(m.npcs, objID)
+}
+
 func (m *mundoGameServer) listarOutros(objID int32) []*gameClient {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()

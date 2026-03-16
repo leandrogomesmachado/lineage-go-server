@@ -15,6 +15,7 @@ type npcTemplate struct {
 	idTemplate    int32
 	nome          string
 	titulo        string
+	alias         string
 	tipo          string
 	nivel         int32
 	hp            int32
@@ -37,6 +38,22 @@ type npcTemplate struct {
 	lHand         int32
 	canMove       bool
 	canBeAttacked bool
+	canSeeThrough bool
+	aiParams      npcAiParametros
+	drops         []npcDropCategoriaTemplate
+}
+
+type npcDropCategoriaTemplate struct {
+	tipo   string
+	chance float64
+	drops  []npcDropTemplate
+}
+
+type npcDropTemplate struct {
+	itemID int32
+	min    int64
+	max    int64
+	chance float64
 }
 
 type xmlListaNpcs struct {
@@ -44,12 +61,15 @@ type xmlListaNpcs struct {
 }
 
 type xmlNpc struct {
-	ID         string        `xml:"id,attr"`
-	IDTemplate string        `xml:"idTemplate,attr"`
-	Name       string        `xml:"name,attr"`
-	Title      string        `xml:"title,attr"`
-	Sets       []xmlNpcSet   `xml:"set"`
-	Skills     []xmlNpcSkill `xml:"skills>skill"`
+	ID         string                `xml:"id,attr"`
+	IDTemplate string                `xml:"idTemplate,attr"`
+	Name       string                `xml:"name,attr"`
+	Title      string                `xml:"title,attr"`
+	Alias      string                `xml:"alias,attr"`
+	Sets       []xmlNpcSet           `xml:"set"`
+	AiSets     []xmlNpcSet           `xml:"ai>set"`
+	Drops      []xmlNpcDropCategoria `xml:"drops>category"`
+	Skills     []xmlNpcSkill         `xml:"skills>skill"`
 }
 
 type xmlNpcSet struct {
@@ -61,6 +81,19 @@ type xmlNpcSkill struct {
 	ID    string `xml:"id,attr"`
 	Level string `xml:"level,attr"`
 	Type  string `xml:"type,attr"`
+}
+
+type xmlNpcDropCategoria struct {
+	Type   string       `xml:"type,attr"`
+	Chance string       `xml:"chance,attr"`
+	Drops  []xmlNpcDrop `xml:"drop"`
+}
+
+type xmlNpcDrop struct {
+	ItemID string `xml:"itemid,attr"`
+	Min    string `xml:"min,attr"`
+	Max    string `xml:"max,attr"`
+	Chance string `xml:"chance,attr"`
 }
 
 var npcTemplates = map[int32]npcTemplate{}
@@ -110,6 +143,7 @@ func converterXmlNpcParaTemplate(item xmlNpc) (npcTemplate, bool) {
 		idTemplate:    npcID,
 		nome:          strings.TrimSpace(item.Name),
 		titulo:        strings.TrimSpace(item.Title),
+		alias:         strings.TrimSpace(item.Alias),
 		nivel:         1,
 		radius:        8,
 		height:        23,
@@ -128,6 +162,7 @@ func converterXmlNpcParaTemplate(item xmlNpc) (npcTemplate, bool) {
 		lHand:         0,
 		canMove:       true,
 		canBeAttacked: true,
+		aiParams:      novoNpcAiParametros(),
 	}
 	idTemplate := int32(0)
 	if strings.TrimSpace(item.IDTemplate) != "" {
@@ -228,9 +263,37 @@ func converterXmlNpcParaTemplate(item xmlNpc) (npcTemplate, bool) {
 			template.canMove = strings.EqualFold(valor, "true")
 			continue
 		}
+		if strings.EqualFold(nome, "canSeeThrough") {
+			template.canSeeThrough = strings.EqualFold(valor, "true")
+			template.aiParams.aplicar(nome, valor)
+			continue
+		}
 		if strings.EqualFold(nome, "canBeAttacked") {
 			template.canBeAttacked = strings.EqualFold(valor, "true")
 		}
+	}
+	for _, aiSet := range item.AiSets {
+		template.aiParams.aplicar(aiSet.Name, aiSet.Val)
+	}
+	for _, categoriaXml := range item.Drops {
+		categoria := npcDropCategoriaTemplate{tipo: strings.TrimSpace(categoriaXml.Type), chance: parseFloat64Seguro(strings.TrimSpace(categoriaXml.Chance)), drops: make([]npcDropTemplate, 0, len(categoriaXml.Drops))}
+		for _, dropXml := range categoriaXml.Drops {
+			drop := npcDropTemplate{itemID: parseInt32Seguro(strings.TrimSpace(dropXml.ItemID)), min: int64(parseInt32Seguro(strings.TrimSpace(dropXml.Min))), max: int64(parseInt32Seguro(strings.TrimSpace(dropXml.Max))), chance: parseFloat64Seguro(strings.TrimSpace(dropXml.Chance))}
+			if drop.itemID <= 0 {
+				continue
+			}
+			if drop.min <= 0 {
+				drop.min = 1
+			}
+			if drop.max < drop.min {
+				drop.max = drop.min
+			}
+			categoria.drops = append(categoria.drops, drop)
+		}
+		if len(categoria.drops) == 0 {
+			continue
+		}
+		template.drops = append(template.drops, categoria)
 	}
 	if template.nome == "" {
 		template.nome = "NPC"

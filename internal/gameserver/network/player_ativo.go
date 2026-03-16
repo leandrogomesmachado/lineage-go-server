@@ -1,8 +1,12 @@
 package network
 
 import (
+	"time"
+
 	gsdb "github.com/leandrogomesmachado/l2raptors-go/internal/gameserver/database"
 )
+
+const duracaoProtecaoSpawnMs int64 = 15000
 
 type playerAtivo struct {
 	objID            int32
@@ -73,6 +77,7 @@ type playerAtivo struct {
 	ultimoMoveY      int32
 	ultimoMoveZ      int32
 	ultimoPersistMs  int64
+	protecaoSpawnAte int64
 }
 
 func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
@@ -160,6 +165,34 @@ func (p *playerAtivo) limparAlvo() {
 
 func (p *playerAtivo) estaSentado() bool {
 	return p.sentado
+}
+
+func (p *playerAtivo) ativarProtecaoSpawn() {
+	if p == nil {
+		return
+	}
+	p.protecaoSpawnAte = time.Now().UnixMilli() + duracaoProtecaoSpawnMs
+}
+
+func (p *playerAtivo) removerProtecaoSpawn() {
+	if p == nil {
+		return
+	}
+	p.protecaoSpawnAte = 0
+}
+
+func (p *playerAtivo) estaProtegidoSpawn() bool {
+	if p == nil {
+		return false
+	}
+	if p.protecaoSpawnAte <= 0 {
+		return false
+	}
+	if time.Now().UnixMilli() >= p.protecaoSpawnAte {
+		p.protecaoSpawnAte = 0
+		return false
+	}
+	return true
 }
 
 func (p *playerAtivo) sentar() {

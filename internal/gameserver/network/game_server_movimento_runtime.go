@@ -164,12 +164,18 @@ func (g *gameServer) processarTickNpcGlobal(intervalo time.Duration) {
 		if npc == nil {
 			continue
 		}
+		if !npc.estaVivo() {
+			g.processarRespawnNpcGlobal(npc)
+			continue
+		}
 		if !npc.ehMonster {
 			continue
 		}
+		g.processarAiNpcGlobal(npc, players)
 		if !npc.canMove {
 			continue
 		}
+		g.processarPosCombateNpcGlobal(npc, players)
 		if npc.aggroRange <= 0 && distanciaAtePlayerMaisProximo(npc, players) > raioVisibilidade {
 			continue
 		}
@@ -181,17 +187,48 @@ func (g *gameServer) processarMovimentoNpcGlobal(npc *npcGlobalRuntime, players 
 	if npc == nil {
 		return
 	}
-	alvo := selecionarAlvoNpcGlobal(npc, players)
+	alvo := (*gameClient)(nil)
+	if npc.aiTopDesireTargetObjID > 0 {
+		alvo = localizarPlayerPorObjID(players, npc.aiTopDesireTargetObjID)
+	}
+	if alvo == nil && npc.alvoObjID > 0 {
+		alvo = localizarPlayerPorObjID(players, npc.alvoObjID)
+	}
+	if alvo == nil {
+		alvo = selecionarAlvoNpcGlobalPorHate(npc, players)
+	}
+	if alvo == nil {
+		alvo = selecionarAlvoNpcGlobal(npc, players)
+	}
+	if alvo == nil && npc.ehScriptWarriorBase() {
+		npc.alvoObjID = 0
+		npc.aiTopDesireTargetObjID = 0
+		npc.voltarParaPazSeSemAggroOuHate()
+	}
 	if alvo != nil {
 		mudouAlvo := npc.alvoObjID != alvo.playerAtivo.objID
 		npc.alvoObjID = alvo.playerAtivo.objID
+		npc.aiTopDesireTargetObjID = alvo.playerAtivo.objID
+		npc.retornandoSpawn = false
+		if distancia3D(npc.x, npc.y, npc.z, alvo.playerAtivo.x, alvo.playerAtivo.y, alvo.playerAtivo.z) <= distanciaAtaqueMob {
+			g.processarAtaqueNpcContraPlayer(npc, alvo)
+			g.broadcastNpcGlobalAtualizado(npc, mudouAlvo)
+			return
+		}
 		moverNpcGlobalPasso(npc, alvo.playerAtivo.x, alvo.playerAtivo.y, alvo.playerAtivo.z, intervalo)
 		g.broadcastNpcGlobalAtualizado(npc, mudouAlvo)
 		return
 	}
 	tinhaAlvo := npc.alvoObjID > 0
 	npc.alvoObjID = 0
+	if !npc.ehScriptWarriorBase() {
+		npc.aiTopDesireTargetObjID = 0
+	}
+	if npc.deveRetornarSpawn() {
+		npc.retornandoSpawn = true
+	}
 	if distancia3D(npc.x, npc.y, npc.z, npc.origemX, npc.origemY, npc.origemZ) <= 8 {
+		npc.retornandoSpawn = false
 		if tinhaAlvo {
 			g.broadcastNpcGlobalAtualizado(npc, true)
 		}
@@ -205,6 +242,15 @@ func selecionarAlvoNpcGlobal(npc *npcGlobalRuntime, players []*gameClient) *game
 	if npc == nil {
 		return nil
 	}
+	if possuiScriptAiMonsterCarregado(npc.npcID) {
+		return nil
+	}
+	if npc.ehScriptWarriorBase() {
+		return nil
+	}
+	if !npc.ehAgressivo() {
+		return nil
+	}
 	melhorDistancia := 0.0
 	var melhor *gameClient
 	for _, cliente := range players {
@@ -214,12 +260,18 @@ func selecionarAlvoNpcGlobal(npc *npcGlobalRuntime, players []*gameClient) *game
 		if cliente.playerAtivo == nil {
 			continue
 		}
+		if cliente.playerAtivo.estaProtegidoSpawn() {
+			continue
+		}
+		if cliente.playerAtivo.hpAtual <= 0 {
+			continue
+		}
 		distancia := distancia3D(npc.x, npc.y, npc.z, cliente.playerAtivo.x, cliente.playerAtivo.y, cliente.playerAtivo.z)
-		if npc.aggroRange > 0 && distancia > float64(npc.aggroRange) {
+		if distancia > float64(npc.aggroRange) {
 			continue
 		}
 		distanciaOrigem := distancia3D(npc.origemX, npc.origemY, npc.origemZ, cliente.playerAtivo.x, cliente.playerAtivo.y, cliente.playerAtivo.z)
-		if npc.aggroRange > 0 && distanciaOrigem > float64(npc.aggroRange) {
+		if distanciaOrigem > float64(npc.aggroRange) {
 			continue
 		}
 		if melhor == nil || distancia < melhorDistancia {

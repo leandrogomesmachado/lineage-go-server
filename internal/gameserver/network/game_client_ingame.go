@@ -14,6 +14,7 @@ func (g *gameClient) processarMoveBackwardToLocation(packet *moveBackwardToLocat
 	if packet.tipoMovimento == 0 {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
+	g.playerAtivo.removerProtecaoSpawn()
 	logger.Infof("MoveBackwardToLocation recebido para conta %s personagem=%s origem=(%d,%d,%d) destino=(%d,%d,%d) tipo=%d", g.conta, g.playerAtivo.nome, packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ, packet.tipoMovimento)
 	if distancia3D(packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ) > 9900 {
 		return g.enviarPacket(montarActionFailedPacket())

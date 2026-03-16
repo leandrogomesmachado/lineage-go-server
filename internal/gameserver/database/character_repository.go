@@ -138,6 +138,28 @@ func (r *CharacterRepository) MarcarParaExcluir(ctx context.Context, objID int32
 	return mongo.ErrNoDocuments
 }
 
+func (r *CharacterRepository) AtualizarExpSp(ctx context.Context, objID int32, exp int64, sp int32, level int32) error {
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	filtro := bson.M{"obj_id": objID}
+	atualizacao := bson.M{
+		"$set": bson.M{
+			"exp":       exp,
+			"sp":        sp,
+			"level":     level,
+			"updatedAt": time.Now().UnixMilli(),
+		},
+	}
+	resultado, err := r.collection.UpdateOne(ctxTimeout, filtro, atualizacao)
+	if err != nil {
+		return err
+	}
+	if resultado.MatchedCount > 0 {
+		return nil
+	}
+	return mongo.ErrNoDocuments
+}
+
 func (r *CharacterRepository) RestaurarExclusao(ctx context.Context, objID int32) error {
 	return r.MarcarParaExcluir(ctx, objID, 0)
 }
