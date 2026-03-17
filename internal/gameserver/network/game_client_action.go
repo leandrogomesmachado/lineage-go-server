@@ -18,10 +18,15 @@ func (g *gameClient) processarAction(packet *actionPacket) error {
 		if err := g.enviarPacket(montarMyTargetSelectedPacket(npcGlobal.objID, 0)); err != nil {
 			return err
 		}
-		if !npcGlobal.ehMonster {
-			return g.enviarHtmlNpcGlobal(npcGlobal)
+		if npcGlobal.ehMonster {
+			statusNpc := montarStatusUpdatePacket(npcGlobal.objID, [][2]int32{
+				{statusAttrCurHp, npcGlobal.hpAtual},
+				{statusAttrMaxHp, npcGlobal.hpMaximo},
+			})
+			_ = g.enviarPacket(statusNpc)
+			return g.enviarPacket(montarActionFailedPacket())
 		}
-		return g.enviarPacket(montarActionFailedPacket())
+		return g.enviarHtmlNpcGlobal(npcGlobal)
 	}
 	alvoCliente := g.server.mundo.obterPorObjID(packet.objID)
 	if alvoCliente == nil {

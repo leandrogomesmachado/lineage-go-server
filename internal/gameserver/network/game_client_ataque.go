@@ -65,6 +65,17 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 			}
 			_ = cliente.enviarPacket(pacoteAtaque)
 		}
+		statusNpc := montarStatusUpdatePacket(npcGlobal.objID, [][2]int32{
+			{statusAttrCurHp, npcGlobal.hpAtual},
+			{statusAttrMaxHp, npcGlobal.hpMaximo},
+		})
+		_ = g.enviarPacket(statusNpc)
+		for _, cliente := range g.server.mundo.listarPlayersVisiveisParaNpc(npcGlobal) {
+			if cliente == nil {
+				continue
+			}
+			_ = cliente.enviarPacket(statusNpc)
+		}
 		pacoteFim := montarAutoAttackStopPacket(g.playerAtivo.objID)
 		if err := g.enviarPacket(pacoteFim); err != nil {
 			return err
