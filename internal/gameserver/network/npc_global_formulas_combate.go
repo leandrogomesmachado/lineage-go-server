@@ -1,6 +1,12 @@
 package network
 
-import "math"
+import (
+	"math"
+	"math/rand"
+	"time"
+)
+
+var geradorCombate = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 type resultadoAtaqueFisico struct {
 	dano            int32
@@ -107,8 +113,8 @@ func calcularAcertoFisico(acuracia int32, evasao int32, deltaZ int32, atacanteAt
 	if chance > 980 {
 		chance = 980
 	}
-	rolagem := normalizarSementeCombate(semente) % 1000
-	return rolagem < chance
+	_ = semente
+	return geradorCombate.Intn(1000) < int(chance)
 }
 
 func calcularCriticoFisico(chance int32, semente int32) bool {
@@ -118,8 +124,8 @@ func calcularCriticoFisico(chance int32, semente int32) bool {
 	if chance > 1000 {
 		chance = 1000
 	}
-	rolagem := normalizarSementeCombate(semente) % 1000
-	return rolagem < chance
+	_ = semente
+	return geradorCombate.Intn(1000) < int(chance)
 }
 
 func calcularDefesaEscudo(acuraciaEscudo int32, critico bool, semente int32) string {
@@ -130,7 +136,8 @@ func calcularDefesaEscudo(acuraciaEscudo int32, critico bool, semente int32) str
 	if critico {
 		chanceBase *= 3
 	}
-	rolagem := normalizarSementeCombate(semente) % 100
+	_ = semente
+	rolagem := int32(geradorCombate.Intn(100))
 	if rolagem < 5 {
 		return "perfect"
 	}
@@ -150,7 +157,8 @@ func calcularDanoFisicoBase(pAtk int32, pDef int32, critico bool, defesaEscudo s
 	if defesaEscudo == "perfect" {
 		return 1
 	}
-	rnd := 0.95 + float64(normalizarSementeCombate(variacaoBase)%11)/100.0
+	_ = variacaoBase
+	rnd := 0.9 + float64(geradorCombate.Intn(21))/100.0
 	posMul := 1.0
 	if critico {
 		posMul = 2.0
@@ -167,6 +175,22 @@ func normalizarSementeCombate(semente int32) int32 {
 		semente *= -1
 	}
 	return semente + 1
+}
+
+func calcularPosMulFisico(atacanteAtras bool, atacanteLado bool, critico bool) float64 {
+	if atacanteAtras {
+		if critico {
+			return 1.1
+		}
+		return 1.2
+	}
+	if atacanteLado {
+		if critico {
+			return 1.025
+		}
+		return 1.05
+	}
+	return 1.0
 }
 
 func maximoInt32(a int32, b int32) int32 {

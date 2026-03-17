@@ -579,6 +579,20 @@ func (g *gameServer) processarAtaqueNpcContraPlayer(npc *npcGlobalRuntime, alvo 
 		}
 		_ = cliente.enviarPacket(pacoteFim)
 	}
+	if resultado.errou {
+		_ = alvo.enviarPacket(montarSystemMessageNome(msgIDAvoidedS1Attack, npc.nome))
+	}
+	statusUpdate := montarStatusUpdatePacket(alvo.playerAtivo.objID, [][2]int32{
+		{statusAttrCurHp, alvo.playerAtivo.hpAtual},
+		{statusAttrMaxHp, alvo.playerAtivo.hpMaximo},
+	})
+	_ = alvo.enviarPacket(statusUpdate)
+	for _, cliente := range g.mundo.listarPlayersVisiveisParaNpc(npc) {
+		if cliente == nil {
+			continue
+		}
+		_ = cliente.enviarPacket(statusUpdate)
+	}
 	_ = alvo.enviarUserInfoAtualizado()
 	alvo.broadcastCharInfoAtualizado()
 }

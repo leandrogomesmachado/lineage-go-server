@@ -30,7 +30,7 @@ func (n *npcGlobalRuntime) limparDadosReward() {
 	n.danoPorAlvo = map[int32]int64{}
 }
 
-func (g *gameServer) distribuirRewardMorteNpcGlobal(npc *npcGlobalRuntime) {
+func (g *gameServer) distribuirRewardMorteNpcGlobal(npc *npcGlobalRuntime, matador *gameClient) {
 	if g == nil {
 		return
 	}
@@ -91,6 +91,7 @@ func (g *gameServer) distribuirRewardMorteNpcGlobal(npc *npcGlobalRuntime) {
 	if principal != nil {
 		g.rolarDropNpcGlobal(template, principal)
 	}
+	_ = matador
 	npc.limparDadosReward()
 }
 
@@ -141,17 +142,16 @@ func calcularRewardExpSpMob(nivelPlayer int32, nivelMob int32, expBase int64, sp
 	if spBase < 0 {
 		spBase = 0
 	}
-	diffNivel := nivelPlayer - nivelMob
-	if diffNivel <= 5 {
+	diff := nivelPlayer - nivelMob
+	if diff <= 5 {
 		return expBase, spBase
 	}
-	penalidade := float64(diffNivel-5) * 0.1
-	if penalidade > 0.9 {
-		penalidade = 0.9
+	pow := 1.0
+	for i := int32(0); i < diff-5; i++ {
+		pow *= 5.0 / 6.0
 	}
-	fator := 1.0 - penalidade
-	expFinal := int64(float64(expBase) * fator)
-	spFinal := int32(float64(spBase) * fator)
+	expFinal := int64(float64(expBase) * pow)
+	spFinal := int32(float64(spBase) * pow)
 	if expFinal < 0 {
 		expFinal = 0
 	}
@@ -188,8 +188,17 @@ func (g *gameClient) aplicarRewardExpSp(expGanha int64, spGanho int32) {
 	if spGanho < 0 {
 		spGanho = 0
 	}
+	if expGanha == 0 && spGanho == 0 {
+		return
+	}
+	nivelAntes := g.playerAtivo.nivel
 	g.playerAtivo.exp += expGanha
 	g.playerAtivo.sp += spGanho
+	novo := calcularNivelPorExp(g.playerAtivo.exp)
+	subiuNivel := novo > nivelAntes && novo <= nivelMaximoTabela()
+	if subiuNivel {
+		g.playerAtivo.nivel = novo
+	}
 	g.personagemAtual.Exp = g.playerAtivo.exp
 	g.personagemAtual.Sp = g.playerAtivo.sp
 	g.personagemAtual.Level = g.playerAtivo.nivel
@@ -198,6 +207,15 @@ func (g *gameClient) aplicarRewardExpSp(expGanha int64, spGanho int32) {
 		if err != nil {
 			logger.Warnf("Falha ao persistir exp/sp do personagem %s objID=%d: %v", g.playerAtivo.nome, g.playerAtivo.objID, err)
 		}
+	}
+	if expGanha > 0 && spGanho > 0 {
+		_ = g.enviarPacket(montarSystemMessageDoisNumeros(msgIDYouEarnedS1ExpS2Sp, int32(expGanha), spGanho))
+	} else if expGanha > 0 {
+		_ = g.enviarPacket(montarSystemMessageNumero(msgIDEarnedS1Experience, int32(expGanha)))
+	}
+	if subiuNivel {
+		_ = g.enviarPacket(montarSystemMessageSimples(msgIDYouIncreasedYourLevel))
+		logger.Infof("Level up personagem=%s objID=%d nivel=%d->%d", g.playerAtivo.nome, g.playerAtivo.objID, nivelAntes, novo)
 	}
 	_ = g.enviarUserInfoAtualizado()
 	g.broadcastCharInfoAtualizado()

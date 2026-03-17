@@ -81,6 +81,10 @@ func (g *gameServer) Iniciar() error {
 	if err != nil {
 		return err
 	}
+	err = carregarTabelaExpNivel(g.config.Datapack.Path)
+	if err != nil {
+		return err
+	}
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", g.config.Server.Host, g.config.Server.Port))
 	if err != nil {
 		return err

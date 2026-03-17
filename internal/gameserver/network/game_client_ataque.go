@@ -70,10 +70,11 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 			return err
 		}
 		g.broadcastPacoteParaVisiveis(pacoteFim)
+		g.enviarMensagensCombatePlayer(resultado)
 		if !morreu {
 			return g.enviarPacket(montarActionFailedPacket())
 		}
-		g.server.distribuirRewardMorteNpcGlobal(npcGlobal)
+		g.server.distribuirRewardMorteNpcGlobal(npcGlobal, g)
 		g.server.processarMorteNpcGlobal(npcGlobal)
 		g.server.mundo.removerNpc(npcGlobal.objID)
 		return g.enviarPacket(montarActionFailedPacket())
@@ -129,6 +130,23 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 	}
 	alvoCliente.broadcastPacoteParaVisiveis(montarTargetUnselectedPacket(alvoCliente.playerAtivo.objID, alvoCliente.playerAtivo.x, alvoCliente.playerAtivo.y, alvoCliente.playerAtivo.z))
 	return g.enviarPacket(montarActionFailedPacket())
+}
+
+func (g *gameClient) enviarMensagensCombatePlayer(resultado resultadoAtaqueFisico) {
+	if g == nil {
+		return
+	}
+	if resultado.errou {
+		_ = g.enviarPacket(montarSystemMessageSimples(msgIDMissedTarget))
+		return
+	}
+	if resultado.critico {
+		_ = g.enviarPacket(montarSystemMessageSimples(msgIDCriticalHit))
+	}
+	if resultado.defesaEscudo == "perfect" {
+		return
+	}
+	_ = g.enviarPacket(montarSystemMessageNumero(msgIDYouDidS1Dano, resultado.dano))
 }
 
 func (g *gameClient) calcularDanoBasico() int32 {
