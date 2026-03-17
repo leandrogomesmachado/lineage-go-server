@@ -92,7 +92,13 @@ func (n *npcGlobalRuntime) resetarEstadoRespawn() {
 	n.limparTodoAggro()
 	n.limparEstadoAi()
 	n.limparDadosReward()
-	x, y, z, heading := resolverPosicaoSpawnGlobal(n.spawnTerritorio, n.spawnPosFixa, 0, n.ehMonster)
+	x, y, z, heading, ok := resolverPosicaoSpawnGlobal(n.spawnTerritorio, n.spawnPosFixa, 0, n.ehMonster, n.spawnTerritorio.nome != "")
+	if !ok {
+		x = n.origemX
+		y = n.origemY
+		z = n.origemZ
+		heading = n.heading
+	}
 	n.origemX = x
 	n.origemY = y
 	n.origemZ = z

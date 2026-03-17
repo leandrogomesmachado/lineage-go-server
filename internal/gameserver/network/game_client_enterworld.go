@@ -220,7 +220,7 @@ func (g *gameClient) garantirSpawnSeguro() {
 	spawnInicial := template.obterSpawnInicial(g.personagemAtual.ObjID)
 	xAjustado, yAjustado, zAjustado := normalizarPosicaoMundo(g.personagemAtual.X, g.personagemAtual.Y, g.personagemAtual.Z)
 	statusInconsistente := g.personagemAtual.MaxHp <= 0 || g.personagemAtual.MaxMp <= 0 || g.personagemAtual.Level <= 0
-	if statusInconsistente || !g.posicaoPareceSegura(xAjustado, yAjustado, zAjustado, template) {
+	if statusInconsistente || !g.posicaoPareceSegura(xAjustado, yAjustado, zAjustado) {
 		xAjustado = spawnInicial.x
 		yAjustado = spawnInicial.y
 		zAjustado = spawnInicial.z
@@ -236,14 +236,11 @@ func (g *gameClient) garantirSpawnSeguro() {
 	logger.Infof("Spawn inicial validado para personagem %s objID=%d pos=(%d,%d,%d)", g.personagemAtual.CharName, g.personagemAtual.ObjID, xAjustado, yAjustado, zAjustado)
 }
 
-func (g *gameClient) posicaoPareceSegura(x int32, y int32, z int32, template templatePersonagemInicial) bool {
+func (g *gameClient) posicaoPareceSegura(x int32, y int32, z int32) bool {
 	if z <= -5000 {
 		return false
 	}
 	if x == 0 && y == 0 {
-		return false
-	}
-	if distancia3D(x, y, z, template.x, template.y, template.z) > 3000 {
 		return false
 	}
 	return true

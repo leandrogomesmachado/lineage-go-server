@@ -44,6 +44,7 @@ func (g *gameServer) Iniciar() error {
 		return err
 	}
 	g.config.Datapack.Path = datapackResolvido
+	carregarGeodata(g.config.Datapack.Path)
 	err = carregarTemplatesItemWeapon(g.config.Datapack.Path)
 	if err != nil {
 		return err

@@ -27,14 +27,15 @@ type pontoTerritorio struct {
 }
 
 type npcSpawnGlobalTemplate struct {
-	npcID       int32
-	total       int32
-	respawn     string
-	respawnRand string
-	pos         string
-	dbName      string
-	dbSaving    string
-	aiParams    npcAiParametros
+	npcID         int32
+	total         int32
+	respawn       string
+	respawnRand   string
+	pos           string
+	dbName        string
+	dbSaving      string
+	arquivoOrigem string
+	aiParams      npcAiParametros
 }
 
 type makerSpawnGlobalTemplate struct {
@@ -43,6 +44,7 @@ type makerSpawnGlobalTemplate struct {
 	tipoAI         string
 	evento         string
 	maximumNpcs    int32
+	arquivoOrigem  string
 	aiParams       npcAiParametros
 	npcs           []npcSpawnGlobalTemplate
 }
@@ -104,6 +106,11 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 		return err
 	}
 	template := spawnGlobalTemplate{territorios: make(map[string]territorioSpawn), makers: make([]makerSpawnGlobalTemplate, 0)}
+	totalTerritorios := 0
+	totalMakersLidos := 0
+	totalMakersValidos := 0
+	totalNpcsLidos := 0
+	totalNpcsValidos := 0
 	for _, arquivo := range arquivos {
 		dados, errLeitura := os.ReadFile(arquivo)
 		if errLeitura != nil {
@@ -116,6 +123,11 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 			logger.Warnf("Falha ao parsear XML de spawn %s: %v", arquivo, errXml)
 			continue
 		}
+		territoriosArquivo := 0
+		makersLidosArquivo := 0
+		makersValidosArquivo := 0
+		npcsLidosArquivo := 0
+		npcsValidosArquivo := 0
 		for _, territorioXml := range lista.Territorios {
 			territorio := territorioSpawn{nome: strings.TrimSpace(territorioXml.Name), minZ: parseInt32Seguro(territorioXml.MinZ), maxZ: parseInt32Seguro(territorioXml.MaxZ), nos: make([]pontoTerritorio, 0, len(territorioXml.Nos))}
 			for _, no := range territorioXml.Nos {
@@ -148,9 +160,14 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 				continue
 			}
 			template.territorios[territorio.nome] = territorio
+			territoriosArquivo++
+			totalTerritorios++
 		}
 		for _, makerXml := range lista.NpcMakers {
-			maker := makerSpawnGlobalTemplate{nome: strings.TrimSpace(makerXml.Name), territorioNome: strings.TrimSpace(makerXml.Territory), evento: strings.TrimSpace(makerXml.Event), maximumNpcs: parseInt32Seguro(strings.TrimSpace(makerXml.MaximumNpcs)), aiParams: novoNpcAiParametros(), npcs: make([]npcSpawnGlobalTemplate, 0, len(makerXml.Npcs))}
+			makersLidosArquivo++
+			totalMakersLidos++
+			maker := makerSpawnGlobalTemplate{nome: strings.TrimSpace(makerXml.Name), territorioNome: strings.TrimSpace(makerXml.Territory), evento: strings.TrimSpace(makerXml.Event), maximumNpcs: parseInt32Seguro(strings.TrimSpace(makerXml.MaximumNpcs)), arquivoOrigem: filepath.Base(arquivo), aiParams: novoNpcAiParametros(), npcs: make([]npcSpawnGlobalTemplate, 0, len(makerXml.Npcs))}
+			makerTemPosFixa := false
 			for _, ai := range makerXml.AIs {
 				maker.tipoAI = strings.TrimSpace(ai.Type)
 				for _, aiSet := range ai.Sets {
@@ -159,28 +176,45 @@ func carregarTemplatesSpawnGlobal(datapackPath string) error {
 				break
 			}
 			for _, npcXml := range makerXml.Npcs {
-				npcTemplate := npcSpawnGlobalTemplate{npcID: parseInt32Seguro(npcXml.ID), total: parseInt32Seguro(npcXml.Total), respawn: strings.TrimSpace(npcXml.Respawn), respawnRand: strings.TrimSpace(npcXml.RespawnRand), pos: strings.TrimSpace(npcXml.Pos), dbName: strings.TrimSpace(npcXml.DbName), dbSaving: strings.TrimSpace(npcXml.DbSaving), aiParams: novoNpcAiParametros()}
+				npcsLidosArquivo++
+				totalNpcsLidos++
+				npcTemplate := npcSpawnGlobalTemplate{npcID: parseInt32Seguro(npcXml.ID), total: parseInt32Seguro(npcXml.Total), respawn: strings.TrimSpace(npcXml.Respawn), respawnRand: strings.TrimSpace(npcXml.RespawnRand), pos: strings.TrimSpace(npcXml.Pos), dbName: strings.TrimSpace(npcXml.DbName), dbSaving: strings.TrimSpace(npcXml.DbSaving), arquivoOrigem: filepath.Base(arquivo), aiParams: novoNpcAiParametros()}
+				if npcTemplate.pos != "" {
+					makerTemPosFixa = true
+				}
 				for _, aiSet := range npcXml.AiSets {
 					npcTemplate.aiParams.aplicar(aiSet.Name, aiSet.Val)
 				}
 				maker.npcs = append(maker.npcs, npcTemplate)
+				npcsValidosArquivo++
+				totalNpcsValidos++
 			}
 			if maker.nome == "" {
+				logger.Warnf("Maker de spawn ignorado por nome vazio arquivo=%s territorio=%s", filepath.Base(arquivo), maker.territorioNome)
 				continue
 			}
-			if maker.territorioNome == "" {
+			if maker.territorioNome == "" && !makerTemPosFixa {
+				logger.Warnf("Maker de spawn ignorado por territorio vazio sem pos fixa arquivo=%s maker=%s", filepath.Base(arquivo), maker.nome)
 				continue
+			}
+			if maker.territorioNome == "" && makerTemPosFixa {
+				logger.Infof("Maker de spawn fixo sem territorio aceito arquivo=%s maker=%s npcs=%d", filepath.Base(arquivo), maker.nome, len(maker.npcs))
 			}
 			if len(maker.npcs) == 0 {
+				logger.Warnf("Maker de spawn ignorado sem NPCs arquivo=%s maker=%s territorio=%s", filepath.Base(arquivo), maker.nome, maker.territorioNome)
 				continue
 			}
 			template.makers = append(template.makers, maker)
+			makersValidosArquivo++
+			totalMakersValidos++
 		}
+		logger.Infof("Spawn XML carregado arquivo=%s territorios=%d makersLidos=%d makersValidos=%d npcsLidos=%d npcsValidos=%d", filepath.Base(arquivo), territoriosArquivo, makersLidosArquivo, makersValidosArquivo, npcsLidosArquivo, npcsValidosArquivo)
 	}
 	spawnGlobalMu.Lock()
 	spawnGlobalAtual = template
 	spawnGlobalMu.Unlock()
 	logger.Infof("Templates globais de spawn carregados: territorios=%d makers=%d", len(template.territorios), len(template.makers))
+	logger.Infof("Resumo loading spawn global: territorios=%d makersLidos=%d makersValidos=%d npcsLidos=%d npcsValidos=%d", totalTerritorios, totalMakersLidos, totalMakersValidos, totalNpcsLidos, totalNpcsValidos)
 	return nil
 }
 

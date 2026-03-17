@@ -22,7 +22,10 @@ func (g *gameClient) processarMoveBackwardToLocation(packet *moveBackwardToLocat
 	origemX := g.playerAtivo.x
 	origemY := g.playerAtivo.y
 	origemZ := g.playerAtivo.z
-	destinoX, destinoY, destinoZ := normalizarPosicaoMundo(packet.targetX, packet.targetY, packet.targetZ)
+	destinoX, destinoY, destinoZ := getValidLocationCurta(origemX, origemY, origemZ, packet.targetX, packet.targetY, packet.targetZ)
+	if destinoX != packet.targetX || destinoY != packet.targetY || destinoZ != packet.targetZ {
+		logger.Infof("MoveBackwardToLocation ajustado por geodata conta=%s personagem=%s destinoCliente=(%d,%d,%d) destinoServidor=(%d,%d,%d)", g.conta, g.playerAtivo.nome, packet.targetX, packet.targetY, packet.targetZ, destinoX, destinoY, destinoZ)
+	}
 	g.playerAtivo.iniciarMovimento(destinoX, destinoY, destinoZ, calcularHeading(origemX, origemY, destinoX, destinoY))
 	if err := g.enviarPacket(montarMoveToLocationPacketComOrigem(g.playerAtivo, destinoX, destinoY, destinoZ, origemX, origemY, origemZ)); err != nil {
 		return err
@@ -49,6 +52,9 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 			return g.enviarPacket(montarValidateLocationPacket(g.playerAtivo))
 		}
 		xAjustado, yAjustado, zAjustado := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
+		if xAjustado != packet.x || yAjustado != packet.y || zAjustado != packet.z {
+			logger.Infof("ValidatePosition ajustado por geodata conta=%s personagem=%s posCliente=(%d,%d,%d) posServidor=(%d,%d,%d)", g.conta, g.playerAtivo.nome, packet.x, packet.y, packet.z, xAjustado, yAjustado, zAjustado)
+		}
 		g.playerAtivo.aplicarPosicao(xAjustado, yAjustado, zAjustado, packet.heading)
 		if distancia3D(xAjustado, yAjustado, zAjustado, g.playerAtivo.destinoX, g.playerAtivo.destinoY, g.playerAtivo.destinoZ) <= desyncMaximoValidate {
 			g.playerAtivo.pararMovimento()
@@ -58,6 +64,9 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 		return nil
 	}
 	xAjustado, yAjustado, zAjustado := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
+	if xAjustado != packet.x || yAjustado != packet.y || zAjustado != packet.z {
+		logger.Infof("ValidatePosition ajustado por geodata conta=%s personagem=%s posCliente=(%d,%d,%d) posServidor=(%d,%d,%d)", g.conta, g.playerAtivo.nome, packet.x, packet.y, packet.z, xAjustado, yAjustado, zAjustado)
+	}
 	g.playerAtivo.aplicarPosicao(xAjustado, yAjustado, zAjustado, packet.heading)
 	g.sincronizarPersonagemAtualComPlayerAtivo()
 	g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))

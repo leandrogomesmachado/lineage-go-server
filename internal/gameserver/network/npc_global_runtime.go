@@ -10,6 +10,7 @@ import (
 )
 
 var geradorSpawnGlobal = rand.New(rand.NewSource(time.Now().UnixNano()))
+var avisosTerritorioSpawnSuspeito = map[string]bool{}
 
 type npcGlobalRuntime struct {
 	objID                   int32
@@ -104,14 +105,46 @@ func construirNpcsGlobaisDoSpawn() []*npcGlobalRuntime {
 	templates := obterTemplatesSpawnGlobal()
 	resultado := make([]*npcGlobalRuntime, 0)
 	proximoObjID := int32(700000000)
+	totalMakersProcessados := 0
+	totalMakersSemTerritorio := 0
+	totalMakersFixosSemTerritorio := 0
+	totalNpcsTemplatesAusentes := 0
+	totalNpcsInstanciados := 0
+	quantidadePorNpcID := map[int32]int32{}
+	totalMakersEvento := 0
 	for _, maker := range templates.makers {
-		territorio, ok := templates.territorios[maker.territorioNome]
-		if !ok {
+		totalMakersProcessados++
+		if maker.evento != "" {
+			totalMakersEvento++
+			if totalMakersEvento <= 5 {
+				logger.Infof("Maker de evento ignorado no spawn automatico arquivo=%s maker=%s evento=%s (sera controlado por sistema de eventos)", maker.arquivoOrigem, maker.nome, maker.evento)
+			}
 			continue
+		}
+		territorio, ok := templates.territorios[maker.territorioNome]
+		makerTemPosFixa := makerSpawnTemPosFixa(maker)
+		if maker.territorioNome != "" && !ok {
+			totalMakersSemTerritorio++
+			logger.Warnf("Maker de spawn descartado por territorio ausente arquivo=%s maker=%s territorio=%s maximumNpcs=%d npcs=%d", maker.arquivoOrigem, maker.nome, maker.territorioNome, maker.maximumNpcs, len(maker.npcs))
+			continue
+		}
+		if maker.territorioNome == "" && makerTemPosFixa {
+			totalMakersFixosSemTerritorio++
+			logger.Infof("Maker de spawn fixo processado sem territorio arquivo=%s maker=%s maximumNpcs=%d npcs=%d", maker.arquivoOrigem, maker.nome, maker.maximumNpcs, len(maker.npcs))
+		}
+		if maker.territorioNome == "" && !makerTemPosFixa {
+			totalMakersSemTerritorio++
+			logger.Warnf("Maker de spawn descartado sem territorio e sem pos fixa arquivo=%s maker=%s maximumNpcs=%d npcs=%d", maker.arquivoOrigem, maker.nome, maker.maximumNpcs, len(maker.npcs))
+			continue
+		}
+		if strings.Contains(strings.ToLower(maker.nome), "gludio") || strings.Contains(strings.ToLower(maker.territorioNome), "gludio") {
+			logger.Infof("Maker Gludin processado arquivo=%s maker=%s territorio=%s maximumNpcs=%d npcs=%d", maker.arquivoOrigem, maker.nome, maker.territorioNome, maker.maximumNpcs, len(maker.npcs))
 		}
 		for _, npcMaker := range maker.npcs {
 			templateNpc, okNpc := obterTemplateNpc(npcMaker.npcID)
 			if !okNpc {
+				totalNpcsTemplatesAusentes++
+				logger.Warnf("NPC de spawn descartado por template ausente arquivo=%s maker=%s territorio=%s npcID=%d total=%d dbName=%s dbSaving=%s", npcMaker.arquivoOrigem, maker.nome, maker.territorioNome, npcMaker.npcID, npcMaker.total, npcMaker.dbName, npcMaker.dbSaving)
 				continue
 			}
 			scriptAiInfo := obterScriptAiMonsterPorNpcID(npcMaker.npcID)
@@ -125,15 +158,33 @@ func construirNpcsGlobaisDoSpawn() []*npcGlobalRuntime {
 				total = 1
 			}
 			for indice := int32(0); indice < total; indice++ {
-				x, y, z, heading := resolverPosicaoSpawnGlobal(territorio, npcMaker.pos, indice, templateNpc.ehMonster())
+				x, y, z, heading, okPosicao := resolverPosicaoSpawnGlobal(territorio, npcMaker.pos, indice, templateNpc.ehMonster(), ok)
+				if !okPosicao {
+					logger.Warnf("NPC de spawn descartado por posicao invalida arquivo=%s maker=%s territorio=%s npcID=%d indice=%d pos=%s", npcMaker.arquivoOrigem, maker.nome, maker.territorioNome, npcMaker.npcID, indice, npcMaker.pos)
+					continue
+				}
 				npc := &npcGlobalRuntime{objID: proximoObjID, npcID: npcMaker.npcID, idTemplate: templateNpc.idTemplate, nome: templateNpc.nome, titulo: templateNpc.titulo, alias: templateNpc.alias, tipo: templateNpc.tipo, tipoAI: maker.tipoAI, scriptAiDescritor: scriptAiInfo.descritor, scriptAiBase: scriptAiInfo.base, scriptAiVariante: scriptAiInfo.variante, makerEvento: maker.evento, makerMaximumNpcs: maker.maximumNpcs, spawnDbName: npcMaker.dbName, spawnDbSaving: npcMaker.dbSaving, ehMonster: templateNpc.ehMonster(), nivel: templateNpc.nivel, hpAtual: templateNpc.hp, hpMaximo: templateNpc.hp, mpAtual: templateNpc.mp, mpMaximo: templateNpc.mp, pAtk: templateNpc.pAtk, pDef: templateNpc.pDef, mAtk: templateNpc.mAtk, mDef: templateNpc.mDef, crit: templateNpc.crit, aggroRange: templateNpc.aggroRange, origemX: x, origemY: y, origemZ: z, x: x, y: y, z: z, heading: heading, ultimoMoveX: x, ultimoMoveY: y, ultimoMoveZ: z, radiusColisao: templateNpc.radius, heightColisao: templateNpc.height, runSpd: templateNpc.runSpd, walkSpd: templateNpc.walkSpd, pAtkSpd: templateNpc.pAtkSpd, mAtkSpd: templateNpc.mAtkSpd, rHand: templateNpc.rHand, lHand: templateNpc.lHand, canMove: templateNpc.canMove, canBeAttacked: templateNpc.canBeAttacked, hatePorAlvo: map[int32]int32{}, danoPorAlvo: map[int32]int64{}, respawnDelayMs: respawnDelayMs, spawnTerritorio: territorio, spawnPosFixa: npcMaker.pos, aiParams: aiParamsMesclados, aiSeenPlayers: map[int32]int64{}, aiHateList: novoNpcHateList(), aiDesireQueue: novoNpcDesireQueue()}
 				npc.atualizarRegiao()
 				resultado = append(resultado, npc)
+				totalNpcsInstanciados++
+				quantidadePorNpcID[npc.npcID]++
 				proximoObjID++
 			}
 		}
 	}
+	logger.Infof("Resumo construcao spawn global: makersProcessados=%d makersEvento=%d makersSemTerritorio=%d makersFixosSemTerritorio=%d npcsTemplatesAusentes=%d npcsInstanciados=%d", totalMakersProcessados, totalMakersEvento, totalMakersSemTerritorio, totalMakersFixosSemTerritorio, totalNpcsTemplatesAusentes, totalNpcsInstanciados)
+	logger.Infof("Resumo mobs alvo spawn global: direWolf20205=%d blackWolf20317=%d kashaDireWolf21121=%d grayWolf20525=%d whiteWolf20527=%d", quantidadePorNpcID[20205], quantidadePorNpcID[20317], quantidadePorNpcID[21121], quantidadePorNpcID[20525], quantidadePorNpcID[20527])
 	return resultado
+}
+
+func makerSpawnTemPosFixa(maker makerSpawnGlobalTemplate) bool {
+	for _, npcMaker := range maker.npcs {
+		if strings.TrimSpace(npcMaker.pos) == "" {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 func resolverRespawnDelaySpawnGlobal(template npcSpawnGlobalTemplate) int64 {
@@ -181,7 +232,10 @@ func parseRespawnTextoSegundos(valor string) int64 {
 	return segundos
 }
 
-func resolverPosicaoSpawnGlobal(territorio territorioSpawn, pos string, indice int32, ehMonster bool) (int32, int32, int32, int32) {
+func resolverPosicaoSpawnGlobal(territorio territorioSpawn, pos string, indice int32, ehMonster bool, possuiTerritorio bool) (int32, int32, int32, int32, bool) {
+	if possuiTerritorio {
+		logarTerritorioSpawnSuspeitoSeNecessario(territorio)
+	}
 	if pos != "" {
 		partes := strings.Split(pos, ";")
 		if len(partes) >= 4 {
@@ -189,47 +243,85 @@ func resolverPosicaoSpawnGlobal(territorio territorioSpawn, pos string, indice i
 			y := parseInt32Seguro(partes[1])
 			z := parseInt32Seguro(partes[2])
 			heading := parseInt32Seguro(partes[3])
-			return normalizarPosicaoGlobal(x, y, z, heading)
+			xNormalizado, yNormalizado, zNormalizado, headingNormalizado := normalizarPosicaoGlobal(x, y, z, heading)
+			return xNormalizado, yNormalizado, zNormalizado, headingNormalizado, true
 		}
 	}
-	quantidade := int32(len(territorio.nos))
-	if quantidade <= 0 {
-		return 0, 0, 0, 0
+	if !possuiTerritorio {
+		return 0, 0, 0, 0, false
 	}
-	if ehMonster {
-		x, y, z, heading, ok := sortearPosicaoTerritorio(territorio)
-		if ok {
-			return normalizarPosicaoGlobal(x, y, z, heading)
-		}
-	}
-	indiceBase := indice % quantidade
-	baseX := territorio.nos[indiceBase].x
-	baseY := territorio.nos[indiceBase].y
-	baseZ := (territorio.minZ + territorio.maxZ) / 2
-	deslocamentoFaixa := indice / quantidade
-	deslocamentoX := (deslocamentoFaixa % 3) * 40
-	deslocamentoY := ((deslocamentoFaixa / 3) % 3) * 40
-	return normalizarPosicaoGlobal(baseX+deslocamentoX, baseY+deslocamentoY, baseZ, 0)
-}
-
-func sortearPosicaoTerritorio(territorio territorioSpawn) (int32, int32, int32, int32, bool) {
 	if len(territorio.nos) < 3 {
 		return 0, 0, 0, 0, false
 	}
+	x, y, z, heading := sortearPosicaoTerritorio(territorio)
+	xNormalizado, yNormalizado, zNormalizado, headingNormalizado := normalizarPosicaoGlobal(x, y, z, heading)
+	return xNormalizado, yNormalizado, zNormalizado, headingNormalizado, true
+}
+
+func sortearPosicaoTerritorio(territorio territorioSpawn) (int32, int32, int32, int32) {
+	avgZ := resolverZReferenciaTerritorio(territorio)
+	var ultimoX, ultimoY, ultimoZ int32
+	ultimoX = territorio.nos[0].x
+	ultimoY = territorio.nos[0].y
+	ultimoZ = resolverZComGeodataOuTerritorio(ultimoX, ultimoY, avgZ, territorio)
 	if territorio.maxX <= territorio.minX || territorio.maxY <= territorio.minY {
-		return 0, 0, 0, 0, false
+		heading := int32(geradorSpawnGlobal.Intn(65536))
+		return ultimoX, ultimoY, ultimoZ, heading
 	}
-	for tentativa := 0; tentativa < 24; tentativa++ {
+	for tentativa := 0; tentativa < 10; tentativa++ {
 		x := territorio.minX + int32(geradorSpawnGlobal.Intn(int(territorio.maxX-territorio.minX+1)))
 		y := territorio.minY + int32(geradorSpawnGlobal.Intn(int(territorio.maxY-territorio.minY+1)))
 		if !pontoDentroTerritorio(territorio, x, y) {
 			continue
 		}
-		z := (territorio.minZ + territorio.maxZ) / 2
+		z := resolverZComGeodataOuTerritorio(x, y, avgZ, territorio)
+		ultimoX = x
+		ultimoY = y
+		ultimoZ = z
 		heading := int32(geradorSpawnGlobal.Intn(65536))
-		return x, y, z, heading, true
+		return x, y, z, heading
 	}
-	return 0, 0, 0, 0, false
+	heading := int32(geradorSpawnGlobal.Intn(65536))
+	return ultimoX, ultimoY, ultimoZ, heading
+}
+
+func resolverZSeguroSpawnGlobal(territorio territorioSpawn, zBase int32) int32 {
+	if territorio.maxZ == 0 && territorio.minZ == 0 {
+		return zBase
+	}
+	if territorio.maxZ < territorio.minZ {
+		return zBase
+	}
+	if zBase < territorio.minZ {
+		return territorio.maxZ
+	}
+	if zBase > territorio.maxZ {
+		return territorio.maxZ
+	}
+	faixaZ := territorio.maxZ - territorio.minZ
+	if faixaZ <= 512 {
+		return zBase
+	}
+	zLimiteInferior := territorio.maxZ - 512
+	if zBase < zLimiteInferior {
+		return territorio.maxZ
+	}
+	return zBase
+}
+
+func logarTerritorioSpawnSuspeitoSeNecessario(territorio territorioSpawn) {
+	if territorio.nome == "" {
+		return
+	}
+	if avisosTerritorioSpawnSuspeito[territorio.nome] {
+		return
+	}
+	faixaZ := territorio.maxZ - territorio.minZ
+	if faixaZ <= 1500 {
+		return
+	}
+	avisosTerritorioSpawnSuspeito[territorio.nome] = true
+	logger.Warnf("Territorio de spawn com faixa vertical alta nome=%s minZ=%d maxZ=%d faixaZ=%d minX=%d maxX=%d minY=%d maxY=%d", territorio.nome, territorio.minZ, territorio.maxZ, faixaZ, territorio.minX, territorio.maxX, territorio.minY, territorio.maxY)
 }
 
 func pontoDentroTerritorio(territorio territorioSpawn, x int32, y int32) bool {
