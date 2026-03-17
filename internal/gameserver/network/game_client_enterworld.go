@@ -163,6 +163,7 @@ func (g *gameClient) processarEnterWorld(packet *enterWorldPacket) error {
 	}
 	g.estado = estadoInGame
 	g.server.mundo.registrar(g)
+	g.iniciarRegenPlayer()
 	logger.Infof("EnterWorld recebido para conta %s personagem=%s objID=%d", g.conta, g.personagemAtual.CharName, g.personagemAtual.ObjID)
 	if err := g.enviarPacket(montarSkillListPacket(g.skillsAtivas)); err != nil {
 		return err

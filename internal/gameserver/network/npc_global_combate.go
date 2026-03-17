@@ -7,6 +7,39 @@ import (
 )
 
 const distanciaAtaqueMob = 90.0
+const tamanhoBarraHp = int32(352)
+
+func calcularSegmentoHpBarra(hpAtual int32, hpMaximo int32) int32 {
+	if hpMaximo <= 0 {
+		return 0
+	}
+	return hpAtual * tamanhoBarraHp / hpMaximo
+}
+
+func (n *npcGlobalRuntime) deveBroadcastarStatusHp() bool {
+	if n == nil {
+		return true
+	}
+	segmento := calcularSegmentoHpBarra(n.hpAtual, n.hpMaximo)
+	if segmento == n.hpBarSegmentoAnterior && n.hpAtual > 0 {
+		return false
+	}
+	n.hpBarSegmentoAnterior = segmento
+	return true
+}
+
+func (n *npcGlobalRuntime) notificarEventoAi() {
+	if n == nil {
+		return
+	}
+	if n.canalEventoAi == nil {
+		return
+	}
+	select {
+	case n.canalEventoAi <- struct{}{}:
+	default:
+	}
+}
 
 func (n *npcGlobalRuntime) registrarAggro(alvoObjID int32, dano int32) {
 	if n == nil {

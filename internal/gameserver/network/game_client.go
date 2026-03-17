@@ -33,22 +33,26 @@ const (
 )
 
 type gameClient struct {
-	conn              net.Conn
-	server            *gameServer
-	crypt             *gameCrypt
-	estado            estadoGameClient
-	conta             string
-	sessionKey        *protocol.SessionKey
-	chaveCriptografia []byte
-	mutexEnvio        sync.Mutex
-	personagemAtual   *gsdb.CharacterSlot
-	slotSelecionado   int32
-	playerAtivo       *playerAtivo
-	hennasAtivas      []gsdb.CharacterHenna
-	skillsAtivas      []gsdb.CharacterSkill
-	atalhosAtivos     []gsdb.CharacterShortcut
-	subclassesAtivas  []gsdb.CharacterSubclass
-	itensAtivos       []gsdb.CharacterItem
+	conn               net.Conn
+	server             *gameServer
+	crypt              *gameCrypt
+	estado             estadoGameClient
+	conta              string
+	sessionKey         *protocol.SessionKey
+	chaveCriptografia  []byte
+	mutexEnvio         sync.Mutex
+	personagemAtual    *gsdb.CharacterSlot
+	slotSelecionado    int32
+	playerAtivo        *playerAtivo
+	hennasAtivas       []gsdb.CharacterHenna
+	skillsAtivas       []gsdb.CharacterSkill
+	atalhosAtivos      []gsdb.CharacterShortcut
+	subclassesAtivas   []gsdb.CharacterSubclass
+	itensAtivos        []gsdb.CharacterItem
+	augmentacoesAtivas []gsdb.CharacterAugmentation
+	trainerPessoal     *npcTrainerRuntime
+	canalEncerramento  chan struct{}
+	cooldownsSkill     map[int32]int64
 }
 
 func novoGameClient(conn net.Conn, server *gameServer) *gameClient {
@@ -58,10 +62,13 @@ func novoGameClient(conn net.Conn, server *gameServer) *gameClient {
 		crypt:             novoGameCrypt(),
 		estado:            estadoConectado,
 		chaveCriptografia: gerarChaveGameCliente(),
+		canalEncerramento: make(chan struct{}),
+		cooldownsSkill:    make(map[int32]int64),
 	}
 }
 
 func (g *gameClient) loop() {
+	defer close(g.canalEncerramento)
 	defer g.conn.Close()
 	for {
 		dados, err := g.lerPacket()
@@ -168,13 +175,45 @@ func (g *gameClient) processarPacket(dados []byte) error {
 		packet := lerMoveBackwardToLocationPacket(dados)
 		return g.processarMoveBackwardToLocation(packet)
 	}
+	if g.estado == estadoInGame && opcode == 0x04 {
+		packet := lerActionPacket(dados)
+		return g.processarAction(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x0a {
+		packet := lerAttackRequestPacket(dados)
+		return g.processarAttackRequest(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x2a {
+		packet := lerRequestTargetCancelPacket(dados)
+		return g.processarRequestTargetCancel(packet)
+	}
 	if g.estado == estadoInGame && opcode == 0x0f {
 		packet := lerRequestItemListPacket(dados)
 		return g.processarRequestItemList(packet)
 	}
+	if g.estado == estadoInGame && opcode == 0x21 {
+		packet := lerRequestBypassToServerPacket(dados)
+		return g.processarRequestBypassToServer(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x2f {
+		packet := lerRequestMagicSkillUsePacket(dados)
+		return g.processarRequestMagicSkillUse(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x45 {
+		packet := lerRequestActionUsePacket(dados)
+		return g.processarRequestActionUse(packet)
+	}
 	if g.estado == estadoInGame && opcode == 0x48 {
 		packet := lerValidatePositionPacket(dados)
 		return g.processarValidatePosition(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x6b {
+		packet := lerRequestAcquireSkillInfoPacket(dados)
+		return g.processarRequestAcquireSkillInfo(packet)
+	}
+	if g.estado == estadoInGame && opcode == 0x6c {
+		packet := lerRequestAcquireSkillPacket(dados)
+		return g.processarRequestAcquireSkill(packet)
 	}
 	if g.estado == estadoInGame && opcode == 0x46 {
 		packet := lerRequestRestartPacket(dados)

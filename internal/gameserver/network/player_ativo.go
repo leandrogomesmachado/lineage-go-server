@@ -78,6 +78,7 @@ type playerAtivo struct {
 	ultimoMoveZ      int32
 	ultimoPersistMs  int64
 	protecaoSpawnAte int64
+	ultimoAtaqueMs   int64
 }
 
 func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
@@ -201,4 +202,13 @@ func (p *playerAtivo) sentar() {
 
 func (p *playerAtivo) levantar() {
 	p.sentado = false
+}
+
+func (p *playerAtivo) podeAtacarAgora(intervaloMs int64) bool {
+	agora := time.Now().UnixMilli()
+	if agora-p.ultimoAtaqueMs < intervaloMs {
+		return false
+	}
+	p.ultimoAtaqueMs = agora
+	return true
 }

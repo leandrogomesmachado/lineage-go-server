@@ -482,7 +482,16 @@ func (g *gameServer) processarAiNpcGlobal(npc *npcGlobalRuntime, players []*game
 	if !npc.ehMonster {
 		return
 	}
-	if !npc.podeProcessarAiAgora() {
+	temEvento := false
+	if npc.canalEventoAi != nil {
+		select {
+		case <-npc.canalEventoAi:
+			temEvento = true
+			npc.aiUltimoProcessamentoMs = time.Now().UnixMilli()
+		default:
+		}
+	}
+	if !temEvento && !npc.podeProcessarAiAgora() {
 		return
 	}
 	npc.limparDesiresInvalidos(players)

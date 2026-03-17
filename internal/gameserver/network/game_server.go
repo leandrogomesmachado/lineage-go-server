@@ -85,6 +85,10 @@ func (g *gameServer) Iniciar() error {
 	if err != nil {
 		return err
 	}
+	err = carregarTemplatesSkillsAtivas(g.config.Datapack.Path)
+	if err != nil {
+		logger.Warnf("Falha ao carregar templates de skills ativas: %v", err)
+	}
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", g.config.Server.Host, g.config.Server.Port))
 	if err != nil {
 		return err
