@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"time"
 
 	gsdb "github.com/leandrogomesmachado/l2raptors-go/internal/gameserver/database"
@@ -79,6 +80,9 @@ type playerAtivo struct {
 	ultimoPersistMs  int64
 	protecaoSpawnAte int64
 	ultimoAtaqueMs   int64
+	autoAtaqueAlvoID int32
+	stopAutoAtaque   context.CancelFunc
+	atacandoAgora    bool
 }
 
 func novoPlayerAtivo(conta string, slot gsdb.CharacterSlot) *playerAtivo {
@@ -211,4 +215,20 @@ func (p *playerAtivo) podeAtacarAgora(intervaloMs int64) bool {
 	}
 	p.ultimoAtaqueMs = agora
 	return true
+}
+
+func (p *playerAtivo) iniciarAutoAtaqueEstado() {
+	if p == nil {
+		return
+	}
+	p.atacandoAgora = true
+}
+
+func (p *playerAtivo) finalizarAutoAtaqueEstado() bool {
+	if p == nil {
+		return false
+	}
+	precisavaFinalizar := p.atacandoAgora
+	p.atacandoAgora = false
+	return precisavaFinalizar
 }

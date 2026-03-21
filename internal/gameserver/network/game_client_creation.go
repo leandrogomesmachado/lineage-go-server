@@ -139,5 +139,34 @@ func (g *gameClient) criarPersonagem(packet *requestCharacterCreatePacket, templ
 	for i := range skillsIniciais {
 		skillsIniciais[i].CharObjID = slotCriado.ObjID
 	}
-	return g.server.repositorios.CharacterSkills.InserirLote(context.Background(), skillsIniciais)
+	if err := g.server.repositorios.CharacterSkills.InserirLote(context.Background(), skillsIniciais); err != nil {
+		return err
+	}
+	if err := g.inserirItensEAtalhosIniciais(slotCriado.ObjID, template); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (g *gameClient) inserirItensEAtalhosIniciais(charObjID int32, template templatePersonagemInicial) error {
+	ctx := context.Background()
+	tutorialGuideObjID := int32(0)
+	for _, itemTemplate := range template.itensIniciais {
+		item, err := g.server.repositorios.CharacterItems.InserirOuSomarItem(ctx, charObjID, itemTemplate.itemID, itemTemplate.count)
+		if err != nil {
+			return err
+		}
+		if item != nil && itemTemplate.itemID == 5588 {
+			tutorialGuideObjID = item.ObjectID
+		}
+	}
+	atalhos := []gsdb.CharacterShortcut{
+		{CharObjID: charObjID, Slot: 0, Page: 0, Type: "ACTION", ID: 2, Level: 0, ClassIndex: 0},
+		{CharObjID: charObjID, Slot: 3, Page: 0, Type: "ACTION", ID: 5, Level: 0, ClassIndex: 0},
+		{CharObjID: charObjID, Slot: 10, Page: 0, Type: "ACTION", ID: 0, Level: 0, ClassIndex: 0},
+	}
+	if tutorialGuideObjID > 0 {
+		atalhos = append(atalhos, gsdb.CharacterShortcut{CharObjID: charObjID, Slot: 11, Page: 0, Type: "ITEM", ID: tutorialGuideObjID, Level: 0, ClassIndex: 0})
+	}
+	return g.server.repositorios.CharacterShortcuts.InserirLote(ctx, atalhos)
 }

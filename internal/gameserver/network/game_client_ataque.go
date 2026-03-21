@@ -30,71 +30,9 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 		if distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, npcGlobal.x, npcGlobal.y, npcGlobal.z) > distanciaAtaqueBasico {
 			return g.enviarPacket(montarActionFailedPacket())
 		}
-		template, ok := obterTemplatePersonagemInicial(g.playerAtivo.classID)
-		var resultado resultadoAtaqueFisico
-		if ok {
-			itensPapelBoneca := listarItensPapelBoneca(g.itensAtivos)
-			stats := calcularStatsPersonagem(template, g.playerAtivo.nivel, itensPapelBoneca)
-			resultado = calcularResultadoAtaquePlayerContraNpc(g.playerAtivo, npcGlobal, stats)
-		}
-		if !ok {
-			resultado = resultadoAtaqueFisico{dano: g.calcularDanoBasico(), errou: false, critico: false, defesaEscudo: "failed", intervaloAtaque: 1200}
-		}
-		if !g.playerAtivo.podeAtacarAgora(resultado.intervaloAtaque) {
-			return g.enviarPacket(montarActionFailedPacket())
-		}
-		dano := resultado.dano
-		if resultado.errou {
-			dano = 0
-		}
-		npcGlobal.registrarDanoRecebido(g.playerAtivo.objID, dano)
-		morreu := npcGlobal.aplicarDano(dano)
-		npcGlobal.registrarAggro(g.playerAtivo.objID, maximoInt32(dano, 1))
-		npcGlobal.notificarEventoAi()
-		logger.Infof("AttackRequest recebido conta=%s atacante=%s alvoMob=%s npcID=%d dano=%d critico=%t errou=%t escudo=%s hpMob=%d/%d", g.conta, g.playerAtivo.nome, npcGlobal.nome, npcGlobal.npcID, dano, resultado.critico, resultado.errou, resultado.defesaEscudo, npcGlobal.hpAtual, npcGlobal.hpMaximo)
 		g.playerAtivo.definirAlvo(npcGlobal.objID)
-		pacoteInicio := montarAutoAttackStartPacket(g.playerAtivo.objID)
-		if err := g.enviarPacket(pacoteInicio); err != nil {
-			return err
-		}
-		g.broadcastPacoteParaVisiveis(pacoteInicio)
-		pacoteAtaque := montarAttackPacket(g.playerAtivo.objID, npcGlobal.objID, dano, g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z)
-		if err := g.enviarPacket(pacoteAtaque); err != nil {
-			return err
-		}
-		g.broadcastPacoteParaVisiveis(pacoteAtaque)
-		for _, cliente := range g.server.mundo.listarPlayersVisiveisParaNpc(npcGlobal) {
-			if cliente == nil {
-				continue
-			}
-			_ = cliente.enviarPacket(pacoteAtaque)
-		}
-		if morreu || npcGlobal.deveBroadcastarStatusHp() {
-			statusNpc := montarStatusUpdatePacket(npcGlobal.objID, [][2]int32{
-				{statusAttrCurHp, npcGlobal.hpAtual},
-				{statusAttrMaxHp, npcGlobal.hpMaximo},
-			})
-			_ = g.enviarPacket(statusNpc)
-			for _, cliente := range g.server.mundo.listarPlayersVisiveisParaNpc(npcGlobal) {
-				if cliente == nil {
-					continue
-				}
-				_ = cliente.enviarPacket(statusNpc)
-			}
-		}
-		pacoteFim := montarAutoAttackStopPacket(g.playerAtivo.objID)
-		if err := g.enviarPacket(pacoteFim); err != nil {
-			return err
-		}
-		g.broadcastPacoteParaVisiveis(pacoteFim)
-		g.enviarMensagensCombatePlayer(resultado)
-		if !morreu {
-			return g.enviarPacket(montarActionFailedPacket())
-		}
-		g.server.distribuirRewardMorteNpcGlobal(npcGlobal, g)
-		g.server.processarMorteNpcGlobal(npcGlobal)
-		g.server.mundo.removerNpc(npcGlobal.objID)
-		return g.enviarPacket(montarActionFailedPacket())
+		g.iniciarAutoAtaqueNpc(npcGlobal.objID)
+		return nil
 	}
 	alvoCliente := g.server.mundo.obterPorObjID(packet.objID)
 	if alvoCliente == nil {

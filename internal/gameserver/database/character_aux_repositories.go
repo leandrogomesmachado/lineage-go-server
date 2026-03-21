@@ -206,6 +206,31 @@ func (r *CharacterItemRepository) proximoObjectID(ctx context.Context) (int32, e
 	return item.ObjectID + 1, nil
 }
 
+func (r *CharacterShortcutRepository) InserirLote(ctx context.Context, atalhos []CharacterShortcut) error {
+	if len(atalhos) == 0 {
+		return nil
+	}
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	for _, atalho := range atalhos {
+		filtro := bson.M{
+			"char_obj_id": atalho.CharObjID,
+			"slot":        atalho.Slot,
+			"page":        atalho.Page,
+			"class_index": atalho.ClassIndex,
+		}
+		_, err := r.collection.DeleteMany(ctxTimeout, filtro)
+		if err != nil {
+			return err
+		}
+		_, err = r.collection.InsertOne(ctxTimeout, atalho)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (r *CharacterSkillRepository) InserirLote(ctx context.Context, skills []CharacterSkill) error {
 	if len(skills) == 0 {
 		return nil

@@ -19,6 +19,12 @@ type locSpawnInicial struct {
 	z int32
 }
 
+type itemInicialClasse struct {
+	itemID       int32
+	count        int64
+	estaEquipado bool
+}
+
 type templatePersonagemInicial struct {
 	nome            string
 	classID         int32
@@ -59,6 +65,7 @@ type templatePersonagemInicial struct {
 	mpRegenTable    []int32
 	cpRegenTable    []int32
 	spawns          []locSpawnInicial
+	itensIniciais   []itemInicialClasse
 }
 
 var templatesPersonagemInicial = map[int32]templatePersonagemInicial{}
@@ -71,7 +78,14 @@ type xmlListaClasses struct {
 type xmlClasse struct {
 	Sets       []xmlSetClasse   `xml:"set"`
 	Spawns     []xmlSpawnClasse `xml:"spawns>spawn"`
+	Itens      []xmlItemInicial `xml:"items>item"`
 	Comentario string           `xml:",comment"`
+}
+
+type xmlItemInicial struct {
+	ID         string `xml:"id,attr"`
+	Count      string `xml:"count,attr"`
+	IsEquipped string `xml:"isEquipped,attr"`
 }
 
 type xmlSetClasse struct {
@@ -273,6 +287,22 @@ func converterXmlClasseParaTemplate(classe xmlClasse) (templatePersonagemInicial
 	}
 	if template.swimSpd <= 0 {
 		template.swimSpd = 50
+	}
+	for _, itemXml := range classe.Itens {
+		itemID := parseInt32Seguro(itemXml.ID)
+		if itemID <= 0 {
+			continue
+		}
+		count := int64(parseInt32Seguro(itemXml.Count))
+		if count <= 0 {
+			count = 1
+		}
+		estaEquipado := itemXml.IsEquipped != "false"
+		template.itensIniciais = append(template.itensIniciais, itemInicialClasse{
+			itemID:       itemID,
+			count:        count,
+			estaEquipado: estaEquipado,
+		})
 	}
 	for _, spawn := range classe.Spawns {
 		loc := locSpawnInicial{
