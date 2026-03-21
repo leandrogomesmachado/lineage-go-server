@@ -49,6 +49,10 @@ func (g *gameServer) Iniciar() error {
 	if err != nil {
 		return err
 	}
+	err = carregarTemplatesItemEquip(g.config.Datapack.Path)
+	if err != nil {
+		logger.Warnf("Falha ao carregar templates de equip de itens: %v", err)
+	}
 	err = carregarTemplatesPersonagemInicial(g.config.Datapack.Path)
 	if err != nil {
 		return err

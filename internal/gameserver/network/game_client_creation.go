@@ -152,12 +152,47 @@ func (g *gameClient) inserirItensEAtalhosIniciais(charObjID int32, template temp
 	ctx := context.Background()
 	tutorialGuideObjID := int32(0)
 	for _, itemTemplate := range template.itensIniciais {
-		item, err := g.server.repositorios.CharacterItems.InserirOuSomarItem(ctx, charObjID, itemTemplate.itemID, itemTemplate.count)
+		slots := resolverSlotsEquipamento(itemTemplate.itemID)
+		equipavel := itemTemplate.estaEquipado && len(slots) > 0
+		if !equipavel {
+			item, err := g.server.repositorios.CharacterItems.InserirOuSomarItem(ctx, charObjID, itemTemplate.itemID, itemTemplate.count)
+			if err != nil {
+				return err
+			}
+			if item != nil && itemTemplate.itemID == 5588 {
+				tutorialGuideObjID = item.ObjectID
+			}
+			continue
+		}
+		slotPrincipal := slots[0]
+		entrada := gsdb.CharacterItem{
+			OwnerID:  charObjID,
+			ItemID:   itemTemplate.itemID,
+			Count:    itemTemplate.count,
+			Loc:      "PAPERDOLL",
+			LocData:  slotPrincipal,
+			ManaLeft: -1,
+		}
+		item, err := g.server.repositorios.CharacterItems.InserirItemCustom(ctx, entrada)
 		if err != nil {
 			return err
 		}
 		if item != nil && itemTemplate.itemID == 5588 {
 			tutorialGuideObjID = item.ObjectID
+		}
+		for _, slotExtra := range slots[1:] {
+			entradaExtra := gsdb.CharacterItem{
+				OwnerID:  charObjID,
+				ItemID:   itemTemplate.itemID,
+				Count:    itemTemplate.count,
+				Loc:      "PAPERDOLL",
+				LocData:  slotExtra,
+				ManaLeft: -1,
+			}
+			_, errExtra := g.server.repositorios.CharacterItems.InserirItemCustom(ctx, entradaExtra)
+			if errExtra != nil {
+				return errExtra
+			}
 		}
 	}
 	atalhos := []gsdb.CharacterShortcut{

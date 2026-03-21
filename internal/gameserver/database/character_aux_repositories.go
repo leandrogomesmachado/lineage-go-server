@@ -189,6 +189,38 @@ func (r *CharacterItemRepository) InserirOuSomarItem(ctx context.Context, ownerI
 	return &novo, nil
 }
 
+func (r *CharacterItemRepository) InserirItemCustom(ctx context.Context, item CharacterItem) (*CharacterItem, error) {
+	ctxTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	if item.OwnerID <= 0 {
+		return nil, nil
+	}
+	if item.ItemID <= 0 {
+		return nil, nil
+	}
+	if item.Count <= 0 {
+		return nil, nil
+	}
+	if item.ObjectID <= 0 {
+		novoID, err := r.proximoObjectID(ctxTimeout)
+		if err != nil {
+			return nil, err
+		}
+		item.ObjectID = novoID
+	}
+	if item.Loc == "" {
+		item.Loc = "INVENTORY"
+	}
+	if item.ManaLeft == 0 {
+		item.ManaLeft = -1
+	}
+	_, err := r.collection.InsertOne(ctxTimeout, item)
+	if err != nil {
+		return nil, err
+	}
+	return &item, nil
+}
+
 func (r *CharacterItemRepository) proximoObjectID(ctx context.Context) (int32, error) {
 	opcoes := options.FindOne().SetSort(bson.D{{Key: "object_id", Value: -1}})
 	resultado := r.collection.FindOne(ctx, bson.D{}, opcoes)
