@@ -148,7 +148,7 @@ func montarItemListPacketComJanela(itens []gsdb.CharacterItem, augmentacoes []gs
 			equipado = 1
 		}
 		escritor.escreverH(equipado)
-		escritor.escreverD(0)
+		escritor.escreverD(uint32(item.LocData))
 		escritor.escreverH(uint16(item.EnchantLevel))
 		escritor.escreverH(uint16(item.CustomType2))
 		escritor.escreverD(uint32(augmentationID))

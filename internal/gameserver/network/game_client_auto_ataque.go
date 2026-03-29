@@ -60,7 +60,7 @@ func (g *gameClient) loopAutoAtaqueNpc(ctx context.Context, alvoObjID int32) {
 			return
 		}
 
-		distancia := distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, npcGlobal.x, npcGlobal.y, npcGlobal.z)
+		distancia := distancia2D(g.playerAtivo.x, g.playerAtivo.y, npcGlobal.x, npcGlobal.y)
 		if distancia > distanciaAtaqueBasico {
 			if !esperarContextoAtaque(ctx, 500*time.Millisecond) {
 				g.encerrarLoopAutoAtaque()
@@ -111,7 +111,7 @@ func (g *gameClient) loopAutoAtaqueNpc(ctx context.Context, alvoObjID int32) {
 			g.encerrarLoopAutoAtaque()
 			return
 		}
-		if distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, npcAtual.x, npcAtual.y, npcAtual.z) > distanciaAtaqueBasico {
+		if distancia2D(g.playerAtivo.x, g.playerAtivo.y, npcAtual.x, npcAtual.y) > distanciaAtaqueBasico {
 			continue
 		}
 

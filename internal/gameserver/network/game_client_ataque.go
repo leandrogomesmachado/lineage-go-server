@@ -1,6 +1,9 @@
 package network
 
-import "github.com/leandrogomesmachado/l2raptors-go/pkg/logger"
+import (
+	gsdb "github.com/leandrogomesmachado/l2raptors-go/internal/gameserver/database"
+	"github.com/leandrogomesmachado/l2raptors-go/pkg/logger"
+)
 
 const distanciaAtaqueBasico = 150.0
 
@@ -27,10 +30,15 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 		if !npcGlobal.estaVivo() {
 			return g.enviarPacket(montarActionFailedPacket())
 		}
-		if distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, npcGlobal.x, npcGlobal.y, npcGlobal.z) > distanciaAtaqueBasico {
-			return g.enviarPacket(montarActionFailedPacket())
-		}
 		g.playerAtivo.definirAlvo(npcGlobal.objID)
+		distAtual := distancia2D(g.playerAtivo.x, g.playerAtivo.y, npcGlobal.x, npcGlobal.y)
+		deltaZ := float64(absInt32(g.playerAtivo.z - npcGlobal.z))
+		rangeAtaque := rangeAtaqueFisico(g.itensAtivos)
+		if distAtual > rangeAtaque || deltaZ > 150 {
+			g.playerAtivo.ataquePendenteAlvoID = npcGlobal.objID
+			return g.enviarPacket(montarMoveToPawnPacket(g.playerAtivo.objID, npcGlobal.objID, int32(rangeAtaque), g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z))
+		}
+		g.playerAtivo.ataquePendenteAlvoID = 0
 		g.iniciarAutoAtaqueNpc(npcGlobal.objID)
 		return nil
 	}
@@ -50,9 +58,14 @@ func (g *gameClient) processarAttackRequest(packet *attackRequestPacket) error {
 	if !posicaoNoRaioVisivel(g.playerAtivo, alvoCliente.playerAtivo) {
 		return g.enviarPacket(montarActionFailedPacket())
 	}
-	if distancia3D(g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z, alvoCliente.playerAtivo.x, alvoCliente.playerAtivo.y, alvoCliente.playerAtivo.z) > distanciaAtaqueBasico {
-		return g.enviarPacket(montarActionFailedPacket())
+	distAtualPvp := distancia2D(g.playerAtivo.x, g.playerAtivo.y, alvoCliente.playerAtivo.x, alvoCliente.playerAtivo.y)
+	deltaZ := float64(absInt32(g.playerAtivo.z - alvoCliente.playerAtivo.z))
+	rangeAtaquePvp := rangeAtaqueFisico(g.itensAtivos)
+	if distAtualPvp > rangeAtaquePvp || deltaZ > 150 {
+		g.playerAtivo.ataquePendenteAlvoID = alvoCliente.playerAtivo.objID
+		return g.enviarPacket(montarMoveToPawnPacket(g.playerAtivo.objID, alvoCliente.playerAtivo.objID, int32(rangeAtaquePvp), g.playerAtivo.x, g.playerAtivo.y, g.playerAtivo.z))
 	}
+	g.playerAtivo.ataquePendenteAlvoID = 0
 	g.playerAtivo.definirAlvo(alvoCliente.playerAtivo.objID)
 	dano := g.calcularDanoBasico()
 	alvoCliente.aplicarDanoRuntime(dano)
@@ -102,6 +115,22 @@ func (g *gameClient) enviarMensagensCombatePlayer(resultado resultadoAtaqueFisic
 		return
 	}
 	_ = g.enviarPacket(montarSystemMessageNumero(msgIDYouDidS1Dano, resultado.dano))
+}
+
+func rangeAtaqueFisico(itens []gsdb.CharacterItem) float64 {
+	for _, item := range itens {
+		if item.Loc != "PAPERDOLL" || item.LocData != 7 {
+			continue
+		}
+		template, ok := templatesItemEquip[item.ItemID]
+		if !ok {
+			continue
+		}
+		if template.bodypart == "rhand" || template.bodypart == "lrhand" {
+			return distanciaAtaqueBasico
+		}
+	}
+	return distanciaAtaqueBasico
 }
 
 func (g *gameClient) calcularDanoBasico() int32 {

@@ -15,6 +15,7 @@ func (g *gameClient) processarMoveBackwardToLocation(packet *moveBackwardToLocat
 		return g.enviarPacket(montarActionFailedPacket())
 	}
 	g.playerAtivo.removerProtecaoSpawn()
+	g.playerAtivo.ataquePendenteAlvoID = 0
 	g.pararAutoAtaque()
 	logger.Infof("MoveBackwardToLocation recebido para conta %s personagem=%s origem=(%d,%d,%d) destino=(%d,%d,%d) tipo=%d", g.conta, g.playerAtivo.nome, packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ, packet.tipoMovimento)
 	if distancia3D(packet.originX, packet.originY, packet.originZ, packet.targetX, packet.targetY, packet.targetZ) > 9900 {
@@ -62,6 +63,7 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 		}
 		g.sincronizarPersonagemAtualComPlayerAtivo()
 		g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))
+		g.verificarAtaquePendente()
 		return nil
 	}
 	xAjustado, yAjustado, zAjustado := corrigirPosicaoPorGeodataInicial(origemX, origemY, origemZ, packet.x, packet.y, packet.z)
@@ -71,6 +73,7 @@ func (g *gameClient) processarValidatePosition(packet *validatePositionPacket) e
 	g.playerAtivo.aplicarPosicao(xAjustado, yAjustado, zAjustado, packet.heading)
 	g.sincronizarPersonagemAtualComPlayerAtivo()
 	g.broadcastPacoteParaVisiveis(montarValidateLocationPacket(g.playerAtivo))
+	g.verificarAtaquePendente()
 	return nil
 }
 
@@ -172,6 +175,47 @@ func distancia3D(origemX int32, origemY int32, origemZ int32, destinoX int32, de
 	deltaY := float64(destinoY - origemY)
 	deltaZ := float64(destinoZ - origemZ)
 	return math.Sqrt(deltaX*deltaX + deltaY*deltaY + deltaZ*deltaZ)
+}
+
+func distancia2D(origemX int32, origemY int32, destinoX int32, destinoY int32) float64 {
+	deltaX := float64(destinoX - origemX)
+	deltaY := float64(destinoY - origemY)
+	return math.Sqrt(deltaX*deltaX + deltaY*deltaY)
+}
+
+func (g *gameClient) verificarAtaquePendente() {
+	if g.playerAtivo == nil {
+		return
+	}
+	alvoID := g.playerAtivo.ataquePendenteAlvoID
+	if alvoID <= 0 {
+		return
+	}
+	npcGlobal := g.server.mundo.obterNpcPorObjID(alvoID)
+	if npcGlobal != nil {
+		if !npcGlobal.estaVivo() {
+			g.playerAtivo.ataquePendenteAlvoID = 0
+			return
+		}
+		rangeAtaque := rangeAtaqueFisico(g.itensAtivos)
+		dist2D := distancia2D(g.playerAtivo.x, g.playerAtivo.y, npcGlobal.x, npcGlobal.y)
+		if dist2D <= rangeAtaque {
+			g.playerAtivo.ataquePendenteAlvoID = 0
+			g.iniciarAutoAtaqueNpc(alvoID)
+		}
+		return
+	}
+	alvoCliente := g.server.mundo.obterPorObjID(alvoID)
+	if alvoCliente == nil || alvoCliente.playerAtivo == nil {
+		g.playerAtivo.ataquePendenteAlvoID = 0
+		return
+	}
+	rangeAtaque := rangeAtaqueFisico(g.itensAtivos)
+	dist2D := distancia2D(g.playerAtivo.x, g.playerAtivo.y, alvoCliente.playerAtivo.x, alvoCliente.playerAtivo.y)
+	if dist2D <= rangeAtaque {
+		g.playerAtivo.ataquePendenteAlvoID = 0
+		g.iniciarAutoAtaqueContraPlayer(alvoCliente)
+	}
 }
 
 func calcularHeading(origemX int32, origemY int32, destinoX int32, destinoY int32) int32 {
